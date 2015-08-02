@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Layout.LayLayerUtils ( module Layout.LayUtils
                      , module Layout.LayLayerUtils    ) where
 

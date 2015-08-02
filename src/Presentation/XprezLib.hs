@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 module Presentation.XprezLib where
 
 import Common.CommonTypes

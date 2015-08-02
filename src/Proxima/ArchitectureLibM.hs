@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Proxima.ArchitectureLibM where
 
 fix :: (a->a) -> a

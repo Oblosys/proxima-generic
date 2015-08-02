@@ -1,3 +1,4 @@
+{-# LANGUAGE DoRec, ScopedTypeVariables #-}
 module Arrangement.Arranger where
 
 import Common.CommonTypes
@@ -65,12 +66,13 @@ arrangePresentation settings state fontMetricsRef focus oldArrangement dt pres =
     }
 
 
-fixed :: (Show node, Show token) => Settings -> FontMetricsRef -> Int -> FocusPres -> Layout doc enr node clip token -> Layout doc enr node clip token -> Rectangle -> Rectangle -> Int -> Int ->  
+fixed :: forall doc enr node clip token .
+         (Show node, Show token) => Settings -> FontMetricsRef -> Int -> FocusPres -> Layout doc enr node clip token -> Layout doc enr node clip token -> Rectangle -> Rectangle -> Int -> Int ->  
          Arrangement node -> IO (Arrangement node, Int, Int)
-fixed settings fontMetricsRef idACounter focus (pres :: Layout doc enr node clip token) (unprunedPres :: Layout doc enr node clip token) viewedArea oldViewedArea screenWidth screenHeight oldArrangement = 
- mdo { (fontMetrics,arrangement, idACounter', maxFDepth) <- f (fontMetrics,arrangement, idACounter, maxFDepth)
-     ; return (arrangement, idACounter', maxFDepth)
-     }
+fixed settings fontMetricsRef idACounter focus pres unprunedPres viewedArea oldViewedArea screenWidth screenHeight oldArrangement = 
+ do { rec { (fontMetrics,arrangement, idACounter', maxFDepth) <- f (fontMetrics,arrangement, idACounter, maxFDepth) }
+    ; return (arrangement, idACounter', maxFDepth)
+    }
  
  where (focusMinPath,focusMaxPath) = 
          case focus of

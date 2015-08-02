@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Proxima.Architecture where
 
 import Proxima.ArchitectureLibM

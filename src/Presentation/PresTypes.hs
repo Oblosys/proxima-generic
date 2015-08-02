@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Presentation.PresTypes where
 
 import Common.CommonTypes

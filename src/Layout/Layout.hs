@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 module Layout.Layout where
 
 import Common.CommonTypes
@@ -26,8 +27,8 @@ detokenizer wm pres = {- let (l',focusp) = detokenize testWM testPres
                                                                                           ) $
                       -} detokenize wm pres
 
-detokenize :: (DocNode node, Show token) => WhitespaceMap -> Presentation doc enr node clip token ->
-              (Layout doc enr node clip token, FocusPres)
+detokenize :: (DocNode node, Show token) =>
+              WhitespaceMap -> Presentation doc enr node clip token -> (Layout doc enr node clip token, FocusPres)
 detokenize wm pres@(ParsingP idp pr l _)  = detokenizeParsing wm pres
                                                   
 detokenize wm (EmptyP idp)                = (EmptyP idp, noFocus) 
@@ -59,6 +60,8 @@ detokenize wm (FormatterP idp press)      = let (press', f) = detokenizeList wm 
                                            in  (FormatterP idp press', f)
 detokenize wm pr                         = debug Err ("Layout.detokenize: can't handle "++ shallowShowPres pr) $ (castPresToLay pr, noFocus)
 
+detokenizeList :: (DocNode node, Show token) =>
+                  WhitespaceMap -> Int -> [Presentation doc enr node clip token] -> ([Layout doc enr node clip token], FocusPres)
 detokenizeList wm i []           = ([], noFocus)
 detokenizeList wm i (pres:press) = let (pres',  f1) = detokenize wm pres 
                                        (press', f2) = detokenizeList wm (i+1) press

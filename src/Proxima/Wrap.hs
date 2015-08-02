@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 -----------------------------------------------------------------------------------------
 {-| Module      : Proxima.Wrap
     Copyright   : (c) 2007 Martijn Schrage
