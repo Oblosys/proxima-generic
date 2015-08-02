@@ -164,17 +164,7 @@ alex_scan_tkn user orig_input len input s last_acc =
 	check_accs (AlexAcc a  ) = AlexLastAcc a input (I# (len))
 	check_accs (AlexAccSkip) = AlexLastSkip  input (I# (len))
 
-	check_accs (AlexAccPred a predx rest)
-	   | predx user orig_input (I# (len)) input
-	   = AlexLastAcc a input (I# (len))
-	   | otherwise
-	   = check_accs rest
-	check_accs (AlexAccSkipPred predx rest)
-	   | predx user orig_input (I# (len)) input
-	   = AlexLastSkip input (I# (len))
-	   | otherwise
-	   = check_accs rest
-
+{-# LINE 198 "templates/GenericTemplate.hs" #-}
 
 data AlexLastAcc a
   = AlexNone
@@ -191,34 +181,7 @@ data AlexAcc a user
   | AlexAcc a
   | AlexAccSkip
 
-  | AlexAccPred a   (AlexAccPred user) (AlexAcc a user)
-  | AlexAccSkipPred (AlexAccPred user) (AlexAcc a user)
-
-type AlexAccPred user = user -> AlexInput -> Int -> AlexInput -> Bool
-
--- -----------------------------------------------------------------------------
--- Predicates on a rule
-
-alexAndPred p1 p2 user in1 len in2
-  = p1 user in1 len in2 && p2 user in1 len in2
-
---alexPrevCharIsPred :: Char -> AlexAccPred _ 
-alexPrevCharIs c _ input _ _ = c == alexInputPrevChar input
-
-alexPrevCharMatches f _ input _ _ = f (alexInputPrevChar input)
-
---alexPrevCharIsOneOfPred :: Array Char Bool -> AlexAccPred _ 
-alexPrevCharIsOneOf arr _ input _ _ = arr ! alexInputPrevChar input
-
---alexRightContext :: Int -> AlexAccPred _
-alexRightContext (I# (sc)) user _ _ input = 
-     case alex_scan_tkn user input 0# input sc AlexNone of
-	  (AlexNone, _) -> False
-	  _ -> True
-	-- TODO: there's no need to find the longest
-	-- match when checking the right context, just
-	-- the first match will do.
-
+{-# LINE 242 "templates/GenericTemplate.hs" #-}
 
 -- used by wrappers
 iUnbox (I# (i)) = i
