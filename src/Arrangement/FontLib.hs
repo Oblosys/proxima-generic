@@ -47,7 +47,7 @@ mkFontMetrics settings fonts =
     ; seq (length queriedFontsTxt) $ return ()
     ; hClose fh
     ; let queriedFonts :: [((String, Int,Bool,Bool),(Int,Int,[Int]))]
-            = map read $ lines queriedFontsTxt
+          queriedFonts = map read $ lines queriedFontsTxt
     ; let alreadyQueried = catMaybes $ map (lookupFont queriedFonts) fonts
 --    ; putStrLn "check 1"
     ; pendingQueriesTxt <-  readFile "metricsQueries.txt"

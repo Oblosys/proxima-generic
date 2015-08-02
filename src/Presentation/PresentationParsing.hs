@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs, ScopedTypeVariables, NoMonoLocalBinds #-}
 module Presentation.PresentationParsing ( module Presentation.PresentationParsing
                                         , module UU.Parsing 
                                         ) where

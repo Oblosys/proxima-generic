@@ -74,9 +74,8 @@ unArrangeIO  state arrLvl@(ArrangementLevel arr focus p) layLvl@(LayoutLevel pre
     ; return (editsHigh, state', low')
     }
     
-unArrange :: forall doc enr node clip token state .
-             (Show doc, Show enr, Show token, Show node, DocNode node, Clip clip, Show clip
-             ,Editable doc doc enr node clip token) => LocalStateArr -> ArrangementLevel doc enr node clip token -> LayoutLevel doc enr node clip token ->
+unArrange :: (Show doc, Show enr, Show token, Show node, DocNode node, Clip clip, Show clip, Editable doc doc enr node clip token) =>
+             LocalStateArr -> ArrangementLevel doc enr node clip token -> LayoutLevel doc enr node clip token ->
              EditArrangement doc enr node clip token ->
              ([EditLayout doc enr node clip token], LocalStateArr, ArrangementLevel doc enr node clip token)
 unArrange state arrLvl@(ArrangementLevel arr focus p) layLvl@(LayoutLevel pres _ _) editArr = 
@@ -150,7 +149,7 @@ unArrange state arrLvl@(ArrangementLevel arr focus p) layLvl@(LayoutLevel pres _
                (_,_,VertexA _ _ _ _ _ _ _ _ _ _) -> [ MoveVertexLay (pathPFromPathA' arr pres pth ) (dstX-srcX,dstY-srcY)
                                                     , ParseLay
                                                     ]
-               _ -> case docEditDrop arr srcX srcY dstX dstY :: Maybe (EditDocument' doc enr node clip token) of
+               _ -> case docEditDrop arr srcX srcY dstX dstY of
                       Nothing -> [SkipLay 0]
                       Just upd -> [cast upd]
            _ -> [SkipLay 0]
@@ -162,7 +161,9 @@ unArrange state arrLvl@(ArrangementLevel arr focus p) layLvl@(LayoutLevel pres _
     _                     -> ([SkipLay 0],             state, arrLvl) 
 
 guaranteeFocusInView = castArr GuaranteeFocusInViewArr
-    
+
+docEditDrop :: (Show doc, Show enr, Show token, Show node, DocNode node, Clip clip, Show clip, Editable doc doc enr node clip token) =>
+               Arrangement node -> Int -> Int -> Int -> Int -> Maybe (EditDocument' doc enr node clip token)
 docEditDrop arr srcX srcY dstX dstY = 
   case -- showDebug' Arr "\n\ndragsource" $ 
        safeLast $ getDragSourceLocators arr srcX srcY of 
@@ -246,8 +247,7 @@ indexOfDragSourceTag i (TagA DragSourceTag _:arrs) = Just i
 indexOfDragSourceTag i (_:arrs) = indexOfDragSourceTag (i+1) arrs
 
 -- mouseDownDocPres and DocumentLevel cause dependency on type DocumentLevel
-mouseDownDoc :: forall doc enr node clip token state .
-                (DocNode node, Show token)  => state -> ArrangementLevel doc enr node clip token ->
+mouseDownDoc :: (DocNode node, Show token)  => state -> ArrangementLevel doc enr node clip token ->
                 Layout doc enr node clip token -> PathArr -> Int ->
                 ([EditLayout doc enr node clip token], state, ArrangementLevel doc enr node clip token)  
 mouseDownDoc state arrLvl@(ArrangementLevel arr _ _) layout (PathA pthA _) i = -- only look at start of focus. focus will be empty

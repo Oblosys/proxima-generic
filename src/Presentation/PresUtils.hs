@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs, NoMonoLocalBinds #-}
 module Presentation.PresUtils (module Presentation.XprezLib, module Presentation.PresUtils) where
 
 import Common.CommonTypes
@@ -110,10 +111,12 @@ diffPres (GraphP id _ _ _ _ press) _               = DiffLeaf False
 diffPres (VertexP id _ _ _ _ pres) _                 = DiffLeaf False
 diffPres pr                  _                     = debug Err ("PresUtils.diffPres: can't handle "++ show pr) DiffLeaf False
 
+diffGraph :: (DocNode node, Eq token, Show token) => PresentationBase doc enr node clip token level -> PresentationBase doc enr node clip token level -> DiffTree
 diffGraph (GraphP _ d w h es vs) (GraphP _ d' w' h' es' vs') = -- Graph is all or nothing
   -- showDebug' Prs ("dirty bits are"++ show d ++ show d') $
   DiffLeaf $ isClean d' && w == w' && h == h' && es == es' && isCleanDT (diffPress 0 vs 0 vs')
 
+diffPress :: (DocNode node, Eq token, Show token, Eq rf) => rf -> [PresentationBase doc enr node clip token level] -> rf -> [PresentationBase doc enr node clip token level] -> DiffTree
 diffPress rf press rf' press' =
   let nrOfPress   = length press
       nrOfPress'  = length press'
@@ -373,6 +376,7 @@ isEditableTreePres' editable pth      pr                         = debug Err ("*
 -- goes wrong if focus is in empty string on left side of column
 
 -- Bool is for disambiguating end of one string and start of the next. True means at start of string
+xyFromPathPres :: (DocNode node, Show token) => Int -> Int -> PathPres -> Layout doc enr node clip token -> (Int,Int, Bool)
 xyFromPathPres x y (PathP p i)     (EmptyP _)                = (x, y, i==0)  -- should not occur
 xyFromPathPres x y (PathP p i)     (StringP _ str)           = (x+i, y, i==0 && length str /= 0 )
 xyFromPathPres x y (PathP p i)     (ImageP _ _ _)            = (x, y, i==0)
@@ -387,11 +391,13 @@ xyFromPathPres x y (PathP (_:p) i) (LocatorP l pres)         = xyFromPathPres x 
 xyFromPathPres x y (PathP (_:p) i) (TagP t pres)         = xyFromPathPres x y (PathP p i) pres
 xyFromPathPres x y pth             pr                        = debug Err ("PresUtils.xyFromPathPres: can't handle "++show pth {-++" "++ show pr-}) (0,0, True)
 
+xyFromPathRow :: (DocNode node, Show token) => Int -> Int -> PathPres -> [Layout doc enr node clip token] -> (Int,Int, Bool)
 xyFromPathRow x y path@(PathP (s:p) i) press = xyFromPathPres (sum (map widthPres (take s press)) + x) 
                                                               (y-topHeightPres (index "PresUtils.xyFromPathRow" press s))
                                                               (PathP p i) (index "PresUtils.xyFromPathRow" press s)  
 xyFromPathRow x y pth  pr = debug Err ("PresUtils.xyFromPathRow: incorrect path"++show pth) (0,0,True)
 
+xyFromPathCol :: (DocNode node, Show token) => Int -> Int -> PathPres -> [Layout doc enr node clip token] -> (Int,Int, Bool)
 xyFromPathCol x y path@(PathP (s:p) i) press = xyFromPathPres (x-leftWidthPres (index "PresUtils.xyFromPathCol" press s))
                                                               (sum (map heightPres (take s press)) + y) (PathP p i) (index "PresUtils.xyFromPathCol" press s)  
 xyFromPathCol x y pth  pr = debug Err  ("PresUtils.xyFromPathCol: incorrect path"++show pth) (0,0,True)
@@ -405,7 +411,9 @@ c = ColP NoIDP
 
 -- does not take ref nrs into account
 -- images are hacky
+widthPres :: (Show node, Show token) => Layout doc enr node clip token -> Int
 widthPres pres = leftWidthPres pres + rightWidthPres pres
+heightPres :: (Show node, Show token) => Layout doc enr node clip token -> Int
 heightPres pres = topHeightPres pres + bottomHeightPres pres
 
 leftWidthPres :: (Show node, Show token) => Layout doc enr node clip token -> Int
@@ -492,6 +500,7 @@ pathFromXYPres (x,y,b) (LocatorP t pres)  = 0 `consPathP` pathFromXYPres (x,y,b)
 pathFromXYPres (x,y,b) (TagP l pres)  = 0 `consPathP` pathFromXYPres (x,y,b) pres
 pathFromXYPres (x,y,b) pres = debug Err  ("PresUtils.pathFromXYPres: can't handle "++show (x,y)++" "++show pres) NoPathP
 
+pathFromXYRow :: (Show node, Show token) => Int -> (Int, Int, Bool) -> [Layout doc enr node clip token] -> PathPres
 pathFromXYRow i (x,y,b) [] = debug Err "PresUtils.pathFromXYPres: empty row list" $ NoPathP
 pathFromXYRow i (x,y,b) (pres:press) = let w = widthPres pres
                                      in if x<w then (i `consPathP` pathFromXYPres (x,y+topHeightPres pres,b) pres)
@@ -501,6 +510,7 @@ pathFromXYRow i (x,y,b) (pres:press) = let w = widthPres pres
                                         else  pathFromXYRow (i+1) (x-w, y,b) press
                                       
 -- FromXYCol 0 (1,1) [text "sdf", text "bloe"]
+pathFromXYCol :: (Show node, Show token) => Int -> (Int, Int, Bool) -> [Layout doc enr node clip token] -> PathPres
 pathFromXYCol i (x,y,b) [] = debug Prs "PresUtils.pathFromXYPres: empty column list" $ NoPathP
 pathFromXYCol i (x,y,b) (pres:press) = let h = heightPres pres
                                      in   if y < h  then i `consPathP` pathFromXYPres (x+leftWidthPres pres,y,b) pres

@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes, MonoLocalBinds #-}
 module Evaluation.DocumentEdit where
 
 {-
