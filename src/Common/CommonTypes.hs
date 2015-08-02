@@ -1,5 +1,5 @@
-module Common.CommonTypes ( module Char 
-                   , module List
+module Common.CommonTypes ( module Data.Char 
+                   , module Data.List
                    , module Common.DebugLevels
                    , module Common.CommonTypes ) where
 
