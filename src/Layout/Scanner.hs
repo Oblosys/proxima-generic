@@ -17,7 +17,7 @@ import Layout.LayLayerUtils hiding (empty)
 import qualified Data.Map as Map
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
-import Maybe
+import Data.Maybe
 
 import Layout.ScannerAG
 

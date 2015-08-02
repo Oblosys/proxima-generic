@@ -14,8 +14,8 @@ import Common.CommonUtils
 import Presentation.PresTypes
 import Layout.LayLayerTypes
 import Layout.LayLayerUtils
-import List
-import Char
+import Data.List
+import Data.Char
 import qualified Data.Map as Map
 }
 

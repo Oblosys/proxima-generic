@@ -10,8 +10,8 @@ module Common.CommonTypes ( module Char
 -}
 import Common.DebugLevels 
 
-import Char
-import List
+import Data.Char
+import Data.List
 import Data.Maybe
 import Data.IORef
 import System.IO.Unsafe

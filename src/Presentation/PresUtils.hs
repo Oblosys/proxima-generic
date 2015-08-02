@@ -6,7 +6,7 @@ import Layout.LayTypes
 import Common.CommonUtils
 import Proxima.Wrap 
 import Presentation.XprezLib
-import Maybe
+import Data.Maybe
 import Data.List
 
 import Arrangement.ArrTypes

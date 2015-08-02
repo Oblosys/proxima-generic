@@ -11,7 +11,7 @@ import Evaluation.DocTypes
 import Evaluation.DocUtils
 import Presentation.PresTypes
 
-import List
+import Data.List
 import Debug.Trace
 
 class Editable a doc enr node clip token | a -> doc enr node clip token where

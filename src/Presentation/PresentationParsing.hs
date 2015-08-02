@@ -8,7 +8,7 @@ import Presentation.PresLayerTypes
 import Evaluation.DocumentEdit
 import UU.Parsing
 
-import Char
+import Data.Char
 import Data.Maybe
 
 import Debug.Trace

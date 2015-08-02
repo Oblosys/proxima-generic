@@ -14,7 +14,7 @@ import Data.Map (Map)
 
 import Data.Array
 
-import Char
+import Data.Char
 import Data.IORef
 import System.IO
 import Data.Maybe

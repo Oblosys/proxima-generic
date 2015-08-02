@@ -7,7 +7,7 @@ import Presentation.PresTypes
 import Presentation.PresentationParsing
 import Layout.LayTypes -- for id in parse error tooltips
 import Proxima.Wrap
-import Maybe
+import Data.Maybe
 
 -- switch href and vref href is y and vref is x, so (vref, href) is more logical
 

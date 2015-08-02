@@ -7,7 +7,7 @@ import Arrangement.ArrLayerTypes
 import Arrangement.ArrLayerUtils
 import Arrangement.FontLib
 import Proxima.Wrap
-import Maybe
+import Data.Maybe
 import Debug.Trace
 }
 

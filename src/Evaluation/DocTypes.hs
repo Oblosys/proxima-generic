@@ -3,8 +3,8 @@ module Evaluation.DocTypes where
 
 import Common.CommonTypes
 
-import List
-import Char
+import Data.List
+import Data.Char
 import UU.Parsing.CharParser
 
 type FocusDoc = PathDoc  -- just a simple path focus for now

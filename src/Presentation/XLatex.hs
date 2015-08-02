@@ -4,7 +4,7 @@ import Presentation.XprezLib
 import Presentation.PresTypes
 import Common.CommonTypes
 
-import Char
+import Data.Char
 
 fontsize = 20 :: Int
 
