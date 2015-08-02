@@ -1,7 +1,6 @@
 module Proxima.Proxima where
  
 import Data.IORef
-import System
 import Control.Exception
 
 import Proxima.Architecture
@@ -139,9 +138,9 @@ proxima settings presentationSheet parseSheet scannerSheet
 
     }
  `Control.Exception.catch`
-   \(err :: SomeException) -> 
+   \err -> 
     do { putStrLn "\n\n\nProxima terminated abnormally:\n" 
-       ; print err
+       ; print (err :: SomeException)
        --; putStrLn "\n<Press return to exit>"
        --; getLine
        --; return ()
