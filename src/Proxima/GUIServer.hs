@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-} 
 module Proxima.GUIServer where
 
 import Common.CommonTypes ( DebugLevel (..), debug, showDebug, showDebug', debugIO, debugLnIO
