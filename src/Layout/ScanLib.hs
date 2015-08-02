@@ -28,12 +28,52 @@ import Layout.LayLayerTypes
 import Layout.LayLayerUtils hiding (empty)
 import qualified Data.Map as Map hiding (mapMaybe, (!))
 import Data.Maybe
+import Data.Word (Word8)
+import Data.Bits
 
-alexGetChar (_, [])   = Nothing
-alexGetChar (_, Char _ _ _ _ c : cs) = Just (c, (c,cs))
-alexGetChar (_, Structural _ _ _ _ _ _ : cs) = Just ('\255', ('\255', cs))
 
-alexInputPrevChar (c,_) = c
+type AlexInputAbs doc enr node clip token = (Char, [Byte], [ScanChar doc enr node clip token])
+
+-- Code copied from .cabal/share/x86_64-osx-ghc-7.8.3/alex-3.1.4/AlexWrapper-basic, and
+-- modified to encode structural tokens as \255 characters.
+
+-- | Encode a Haskell String to a list of Word8 values, in UTF8 format.
+utf8Encode :: Char -> [Word8]
+utf8Encode = map fromIntegral . go . ord
+ where
+  go oc
+   | oc <= 0x7f       = [oc]
+
+   | oc <= 0x7ff      = [ 0xc0 + (oc `Data.Bits.shiftR` 6)
+                        , 0x80 + oc Data.Bits..&. 0x3f
+                        ]
+
+   | oc <= 0xffff     = [ 0xe0 + (oc `Data.Bits.shiftR` 12)
+                        , 0x80 + ((oc `Data.Bits.shiftR` 6) Data.Bits..&. 0x3f)
+                        , 0x80 + oc Data.Bits..&. 0x3f
+                        ]
+   | otherwise        = [ 0xf0 + (oc `Data.Bits.shiftR` 18)
+                        , 0x80 + ((oc `Data.Bits.shiftR` 12) Data.Bits..&. 0x3f)
+                        , 0x80 + ((oc `Data.Bits.shiftR` 6) Data.Bits..&. 0x3f)
+                        , 0x80 + oc Data.Bits..&. 0x3f
+                        ]
+
+type Byte = Word8
+
+alexGetByte :: AlexInputAbs doc enr node clip token -> Maybe (Byte, AlexInputAbs doc enr node clip token)
+alexGetByte (c,(b:bs),s) = Just (b,(c,bs,s))
+alexGetByte (c,[],[])    = Nothing
+alexGetByte (_,[],(c:s)) = 
+  let c' = encodeStructural c
+  in  case utf8Encode c' of
+        (b:bs) -> Just (b, (c', bs, s))
+        [] -> Nothing
+  where encodeStructural (Char _ _ _ _ c)          = c
+        encodeStructural (Structural _ _ _ _ _ _) ='\255'
+
+alexInputPrevChar (c,_,_) = c
+
+-- end of AlexWrapper-basic code
 
 mkToken = mkTokenEx id
 
