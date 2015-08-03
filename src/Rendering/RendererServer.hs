@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-} 
 -- CPP is enabled only for this module, since it slows the build process down quite a bit
-module Rendering.RendererServer where
+module Rendering.RendererServer (render, renderFocus, mkPopupMenuXY) where
 
 import Common.CommonTypes hiding (Rectangle)
 import qualified Common.CommonTypes as CommonTypes
@@ -22,7 +22,7 @@ import Data.IORef
 import System.IO
 import Control.Monad.Writer hiding (when)
 
-
+render :: Show node => Scale -> Bool -> DiffTreeArr -> Arrangement node -> (Point, Size) -> Writer String ()
 render scale arrDb diffTree arrangement viewedArea =
  do { -- seq (walk arrangement) $ return ()        -- maybe this is not necessary anymore, now the datastructure is strict
     --; putStrLn $ "Rendering on viewedArea " ++ show viewedArea
@@ -40,6 +40,7 @@ render scale arrDb diffTree arrangement viewedArea =
 -- this makes it tricky to move the debuggedArrangement, since the Gest.Int. will not know about it
 -- however, we don't want to debug the focus
     
+renderFocus :: Show node => Scale -> Bool -> FocusArr -> Arrangement node -> (Point, Size) -> Writer String ()
 renderFocus scale arrDb focus arrangement viewedArea =
  do { -- clipRegion <- regionRectangle $ Rectangle (xA arrangement) (yA arrangement) (widthA arrangement) (heightA arrangement)
 
