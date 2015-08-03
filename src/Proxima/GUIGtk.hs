@@ -13,7 +13,7 @@ TODO: fix wrong hRef (hSpaces are the problem)
 -}
 import Graphics.UI.Gtk hiding (Size, Control, Settings, eventArea) --, Socket)
 import Graphics.UI.Gtk.Gdk.GC
-import Graphics.UI.Gtk.Gdk.Events hiding (Control)
+import Graphics.UI.Gtk.Gdk.Events
 import Data.IORef
 
 import Common.CommonTypes ( DebugLevel (..), debug, showDebug, showDebug', debugIO, debugLnIO
@@ -25,7 +25,7 @@ import Layout.LayTypes hiding (Point)
 import Common.CommonUtils
 import Proxima.Wrap
 import Evaluation.DocTypes (DocumentLevel, EditDocument'_ (..))
-import Data.Char
+import Data.Char hiding (Control)
 import Data.Maybe
 import System.IO
 import System.Directory
