@@ -481,7 +481,7 @@ backupDocumentHandler settings handler renderingLvlVar buffer viewedAreaRef wind
  do { let editRendering = SaveFileRen backupFilename 
  
       -- Parse and save
-    ; genericHandler settings handler renderingLvlVar viewedAreaRef (buffer, window, vp, canvas) (castLay ParseLay)) 
+    ; genericHandler settings handler renderingLvlVar viewedAreaRef (buffer, window, vp, canvas) (castLay ParseLay) 
     ; genericHandler settings handler renderingLvlVar viewedAreaRef (buffer, window, vp, canvas) editRendering 
     ; return True
     }
