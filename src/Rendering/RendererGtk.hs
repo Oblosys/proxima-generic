@@ -83,11 +83,11 @@ mkPopupMenuXY :: (DocNode node, Show token) => Settings ->
                  IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
                  IORef (RenderingLevel doc enr node clip token) ->
                  IORef (Maybe Pixmap) -> IORef CommonTypes.Rectangle -> Window -> Viewport -> DrawingArea -> Int -> Int -> IO (Maybe Menu)
-mkPopupMenuXY settings prs scale arr handler renderingLvlVar buffer viewedAreaRef window vp canvas x' y'  =
+mkPopupMenuXY settings lay scale arr handler renderingLvlVar buffer viewedAreaRef window vp canvas x' y'  =
  do { let (x,y) = (descaleInt scale x',descaleInt scale y')
     ; let ctxtItems = case point x y arr of
                         Nothing -> []
-                        Just pthA -> popupMenuItemsPres (pathPFromPathA' arr prs pthA) prs
+                        Just pthA -> popupMenuItemsPres (pathPFromPathA' arr lay pthA) lay
     ; let menuItems = [ (str, popupMenuHandler settings handler renderingLvlVar buffer viewedAreaRef window vp canvas upd)
                       | (str, upd) <- ctxtItems]
     ; print (map fst menuItems)
