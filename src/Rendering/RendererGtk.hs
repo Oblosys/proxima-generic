@@ -96,6 +96,7 @@ mkPopupMenuXY settings lay scale arr handler renderingLvlVar buffer viewedAreaRe
     ; return $ Just contextMenu                                          
     }
  
+render ::Scale -> Bool -> DiffTreeArr -> Arrangement node -> (Window, drawWindow, GC) -> CommonTypes.Rectangle -> Render ()    
 render scale arrDb diffTree arrangement (wi,dw,gc) viewedArea =
  do { setLineCap LineCapRound
     ; setLineJoin LineJoinRound
@@ -103,6 +104,8 @@ render scale arrDb diffTree arrangement (wi,dw,gc) viewedArea =
     ; renderArr undefined (wi,dw,gc) arrDb scale origin viewedArea diffTree arrangement
     }
     
+
+renderFocus ::Scale -> Bool -> FocusArr -> Arrangement node -> (Window, drawWindow, GC) -> CommonTypes.Rectangle -> Render ()    
 renderFocus scale arrDb focus arrangement (wi, dw, gc) viewedArea =
   let focusArrList = arrangeFocus focus arrangement
   in  do { setLineCap LineCapRound
