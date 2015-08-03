@@ -76,12 +76,9 @@ so 1 pt = dpi/72 px
 
 -}
 
-
-
-
-
+-- Note that the type differs from RendererGtk.mkPopupMenuXY because the type GUICommand.GUICommand defined differently based on whether we compile for gtk or server
 mkPopupMenuXY :: (DocNode node, Show token) => Settings ->
-                 Layout doc node clip token -> Scale -> Arrangement node ->
+                 Layout doc enr node clip token -> Scale -> Arrangement node ->
                  ((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) ->
                  IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
                  IORef (RenderingLevel doc enr node clip token) ->

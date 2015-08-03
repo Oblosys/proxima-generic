@@ -70,9 +70,7 @@ renderFocus scale arrDb focus arrangement viewedArea =
                                   focusArrList) 
    }
 
-
-
-
+-- Note that the type differs from RendererServer.mkPopupMenuXY because the type GUICommand.GUICommand defined differently based on whether we compile for gtk or server
 mkPopupMenuXY :: (DocNode node, Show token) => Settings ->
                  Layout doc enr node clip token -> Scale -> Arrangement node ->
                  Int -> Int -> [PopupMenuItem doc enr node clip token]
