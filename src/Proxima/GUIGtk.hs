@@ -1,4 +1,4 @@
-module Proxima.GUIGtk (initialize, startEventLoop, genericHandler, withCatch) where
+module Proxima.GUIGtk (initialize, startEventLoop, genericHandler, withCatch, popupMenuHandler) where
 
 {-
 Initialization of the document is done with timer handler, because it may show a dialog (about the
@@ -181,9 +181,9 @@ onKeyboard settings handler renderingLvlVar buffer viewedAreaRef window vp canva
 popupMenuHandler :: Settings ->
                     ((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
                     IORef (RenderingLevel doc enr node clip token) -> IORef (Maybe Pixmap) -> IORef CommonTypes.Rectangle -> Window -> Viewport -> DrawingArea ->
-                    ((DocumentLevel doc clip) -> (DocumentLevel doc clip)) -> IO ()
+                    Wrapped doc enr node clip token -> IO ()
 popupMenuHandler settings handler renderingLvlVar buffer viewedAreaRef window vp canvas editDoc =
- do { let editRendering = castDoc' $ UpdateDoc editDoc
+ do { let editRendering = WrapRen editDoc
     ; genericHandler settings handler renderingLvlVar viewedAreaRef (buffer, window, vp, canvas) editRendering                 
     }
 
