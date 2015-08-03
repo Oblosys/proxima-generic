@@ -4,7 +4,7 @@ module Arrangement.FontLib where
 import Common.CommonTypes
 import Common.CommonUtils
 #ifndef SERVER   
-import Graphics.UI.Gtk hiding (FontMetrics)
+import Graphics.UI.Gtk hiding (FontMetrics, Font, Settings)
 #endif
 
 import Settings
@@ -18,6 +18,7 @@ import Data.Char
 import Data.IORef
 import System.IO
 import Data.Maybe
+import GHC.Float
 
 
 
@@ -91,7 +92,7 @@ mkFontMetrics settings fonts =
 
 
 --- query the metrics for font. 
-queryFont :: Font -> IO (Font,(Int, Int, [Int]))
+queryFont :: Font -> IO (Font,(Int, Int, [Float]))
 queryFont font =
  do { --debugLnIO Arr $ "Querying: " ++ show (fSize font) ++ " " ++ (fFamily font)
     ; context <- cairoCreateContext Nothing
@@ -102,7 +103,7 @@ queryFont font =
     ; widths <- mapM (\c -> do { pangoItems <- pangoItemize context [c] [ AttrFontDescription 0 255 fontDescription]
                                ; glyphItem <- pangoShape (head' "Fontlib.queryFont" pangoItems)
                                ; widths <- glyphItemGetLogicalWidths glyphItem (Just False)
-                               ; return (round $ head' "Fontlib.queryFont" widths)
+                               ; return (double2Float $ head' "Fontlib.queryFont" widths)
                                })
                      allChars
     

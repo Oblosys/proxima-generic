@@ -1,10 +1,11 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, RankNTypes #-}
 module Rendering.RenTypes where
 
 #ifdef SERVER
 import Control.Monad.Writer
 #else
-import Graphics.UI.Gtk hiding (Scale, Size, Rectangle)
+import Graphics.UI.Gtk hiding (Scale, Size, Rectangle, Font)
+import Graphics.UI.Gtk.Gdk.GC (GC)
 import Graphics.Rendering.Cairo
 #endif
 

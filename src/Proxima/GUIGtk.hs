@@ -11,8 +11,9 @@ Unclear: if edit is skip, update renderingLevel? Maybe it was changed by rendere
 TODO: fix wrong hRef (hSpaces are the problem)
 
 -}
-import Graphics.UI.Gtk hiding (Size) --, Socket)
-import Graphics.UI.Gtk.Gdk.Events
+import Graphics.UI.Gtk hiding (Size, Control, Settings, eventArea) --, Socket)
+import Graphics.UI.Gtk.Gdk.GC
+import Graphics.UI.Gtk.Gdk.Events hiding (Control)
 import Data.IORef
 
 import Common.CommonTypes ( DebugLevel (..), debug, showDebug, showDebug', debugIO, debugLnIO
@@ -20,14 +21,14 @@ import Common.CommonTypes ( DebugLevel (..), debug, showDebug, showDebug', debug
 import qualified Common.CommonTypes as CommonTypes
 import Rendering.RenTypes
 import Rendering.RenUtils
-import Layout.LayTypes
+import Layout.LayTypes hiding (Point)
 import Common.CommonUtils
 import Proxima.Wrap
 import Evaluation.DocTypes (DocumentLevel, EditDocument'_ (..))
-import Char
-import Maybe
+import Data.Char
+import Data.Maybe
 import System.IO
-import Directory
+import System.Directory
 import Data.Time.Clock
 import Control.Exception
 

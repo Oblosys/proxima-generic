@@ -1,6 +1,6 @@
-{-# LANGUAGE CPP #-} 
+{-# LANGUAGE CPP, MonoLocalBinds #-} 
 -- CPP is enabled only for this module, since it slows the build process down quite a bit
-module Rendering.RendererGtk where
+module Rendering.RendererGtk (render, renderFocus, mkPopupMenuXY) where
 
 import Common.CommonTypes hiding (Rectangle)
 import qualified Common.CommonTypes as CommonTypes
@@ -21,7 +21,8 @@ import System.IO.Unsafe
 import Data.IORef
 import System.IO
 
-import Graphics.UI.Gtk hiding (Scale, Solid, Size, Layout, fill, setSourceColor)
+import Graphics.UI.Gtk hiding (Scale, Solid, Size, Layout, Settings, Region, fill, setSourceColor, rectangle)
+import Graphics.UI.Gtk.Gdk.GC (GC, gcSetValues, newGCValues, foreground)
 import Graphics.Rendering.Cairo hiding (Path)
 import Proxima.GUIGtk
 
