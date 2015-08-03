@@ -137,8 +137,9 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
      --if True then return () else    -- uncomment this line to skip rendering
 
 
-     if (isSelfCleanDTArr diffTree)  -- if self is clean, only render its children (if present)
-     then if (isCleanDTArr diffTree)
+     -- TODO: incrementality is still buggy, so for now we disable it for gtk (regardless of Settings.rendererIncrementality)
+     if False -- (isSelfCleanDTArr diffTree)  -- if self is clean, only render its children (if present)
+     then if (isCleanDTArr diffTree) 
           then return ()
           else let renderChildren x' y' arrs =
                     do { let (x,y)=(lux+scaleInt scale x', luy+scaleInt scale y')
