@@ -24,6 +24,11 @@ render :: (HasPath node, Show node) => Settings ->
           EditArrangement' doc node clip ->
           (EditRendering' (DocumentLevel doc clip), LocalStateRen, ArrangementLevel doc node clip)
 -}
+render :: (DocNode node, Show node, Show token) => Settings -> LocalStateRen ->
+          ArrangementLevel doc enr node clip token ->
+          RenderingLevel doc enr node clip token ->
+          EditArrangement' doc enr node clip token ->
+          IO (EditRendering' doc enr node clip token, LocalStateRen, ArrangementLevel doc enr node clip token)
 render settings state (ArrangementLevel arr focus prs) ren@(RenderingLevel scale _ _ _ _ debugging updRegions lmd) (SkipArr' 0) = 
    let arr'        = if debugging then debugArrangement arr else arr
        diffTree    = DiffLeafArr False Nothing
@@ -32,7 +37,7 @@ render settings state (ArrangementLevel arr focus prs) ren@(RenderingLevel scale
        updRegions' = computeUpdatedRegions updRegions scale focus diffTree arr arr'
        size        = (widthA arr', heightA arr')
    in  return ( SetRen' (RenderingLevel scale (mkPopupMenuXY settings prs scale arr') rendering focusRendering size debugging updRegions' lmd)
-       , state, ArrangementLevel arr focus prs)
+              , state, ArrangementLevel arr focus prs)
 render settings state arrLvl ren (SkipArr' i) = return (SkipRen' (i-1), state, arrLvl)
 render settings state (ArrangementLevel arrOld focusOld _) ren@(RenderingLevel scale _ _ _ _ debugging updRegions lmd) (SetArr' (ArrangementLevel arr focus prs)) =  -- arr is recomputed, so no debug
    let arr'        = if debugging then debugArrangement arr else arr
