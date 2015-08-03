@@ -1,7 +1,7 @@
-module Proxima.GUIServer where
+module Proxima.GUIServer (initialize, startEventLoop, genericHandler, withCatch) where
 
 import Common.CommonTypes ( DebugLevel (..), debug, showDebug, showDebug', debugIO, debugLnIO
-                          , Settings (..) )
+                          , Settings (..), Rectangle )
 import qualified Common.CommonTypes as CommonTypes
 
 import Common.CommonUtils
@@ -16,9 +16,9 @@ import Control.Exception
 import Data.Char
 import System.Directory
 {- HAppS -}
-import HAppS.Server hiding (unwrap)
-import HAppS.Server.SimpleHTTP
-import HAppS.State
+--import HAppS.Server hiding (unwrap)
+--import HAppS.Server.SimpleHTTP
+--import HAppS.State
 import System.Environment
 import Data.Time
 import System.Locale
@@ -58,6 +58,18 @@ import Control.Monad hiding (when)
 import Control.Monad.Writer hiding (when)
 import Data.List
 
+{-
+            Settings ->
+            ((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
+            IORef Rectangle ->
+
+-}
+initialize :: ( Settings, 
+                ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+                  IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
+                )
+              , IORef (RenderingLevel doc enr node clip token), IORef Rectangle, (Int,Int)) ->
+              IO ()
 initialize (settings,handler,renderingLvlVar,viewedAreaRef,_) = 
  do { fh <- openFile "queriedMetrics.txt" WriteMode
     ; hPutStr fh ""
@@ -69,9 +81,17 @@ initialize (settings,handler,renderingLvlVar,viewedAreaRef,_) =
     }              
 
 -- withCatch is identity in GUIServer, it is defined only in the GUIGtk module.
+withCatch :: IO a -> IO a
 withCatch io = io
 
-startEventLoop params@(settings,h,rv,vr) = withProgName "proxima" $
+startEventLoop :: ( Settings, 
+                    ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+                      IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
+                    )
+                  , IORef (RenderingLevel doc enr node clip token)
+                  , IORef Rectangle) ->
+                  IO ()
+startEventLoop params@(settings,h,rv,vr) =  error "Proxima.GUIServer.startEventLoop" {-  withProgName "proxima" $
  do { mutex <- newMVar ()
     ; menuR <- newIORef []
     ; actualViewedAreaRef <- newIORef ((0,0),(0,0)) -- is used when reducing the viewed area, see mkSetViewedAreaHtml
@@ -691,13 +711,13 @@ handleCommand (settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewe
 
         ; return $ html1++["<div op='clear'></div>"]++html2
         }
-     
+-}     
 genericHandler :: (Show token, Show node, Show enr, Show doc) => Settings ->
                ((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
                IORef (RenderingLevel doc enr node clip token) -> IORef CommonTypes.Rectangle -> 
                () -> -- is here so the type is compatible with genericHandler from GUIGtk
                EditRendering doc enr node clip token -> IO [String]
-genericHandler settings handler renderingLvlVar viewedAreaRef () evt =   
+genericHandler settings handler renderingLvlVar viewedAreaRef () evt = error "Proxima.GUIServer.genericHandler" {-
  do { renderingLvl <- readIORef renderingLvlVar
     ; putStrLn $ "Generic handler server started for edit op: " ++ show evt
     ; viewedArea <- readIORef viewedAreaRef
@@ -750,3 +770,4 @@ mkSetViewedAreaHtml settings viewedAreaRef actualViewedAreaRef =
     --; putStr $ "set client viewed area: " ++ show (x,y)
     ; return $ "<div op='setViewedArea' x='"++show x'++"' y='"++show y'++"' w='"++show w++"' h='"++show h++"'></div>"
     }
+-}
