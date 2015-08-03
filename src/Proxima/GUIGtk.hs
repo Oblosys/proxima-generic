@@ -27,6 +27,7 @@ import Proxima.Wrap
 import Evaluation.DocTypes (DocumentLevel, EditDocument'_ (..))
 import Data.Char hiding (Control)
 import Data.Maybe
+import Data.Text (unpack)
 import System.IO
 import System.Directory
 import Data.Time.Clock
@@ -167,7 +168,7 @@ onKeyboard :: Settings ->
               IORef (RenderingLevel doc enr node clip token) -> IORef (Maybe Pixmap) -> IORef CommonTypes.Rectangle -> Window -> Viewport -> DrawingArea ->
               Event -> IO Bool
 onKeyboard settings handler renderingLvlVar buffer viewedAreaRef window vp canvas (Key _ _ _ mods _ _ _  _ keyName mKeyChar) = 
- do { let editRendering = translateKey keyName mKeyChar (translateModifiers mods)
+ do { let editRendering = translateKey (unpack keyName) mKeyChar (translateModifiers mods)
 
     ; case editRendering of -- TODO: put this in genericHandler?
         SkipRen _ -> return False
