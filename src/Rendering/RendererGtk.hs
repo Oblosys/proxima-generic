@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP, MonoLocalBinds #-} 
--- CPP is enabled only for this module, since it slows the build process down quite a bit
 module Rendering.RendererGtk (render, renderFocus, mkPopupMenuXY) where
 
 import Common.CommonTypes hiding (Rectangle)
@@ -96,7 +94,8 @@ mkPopupMenuXY settings lay scale arr handler renderingLvlVar buffer viewedAreaRe
     ; return $ Just contextMenu                                          
     }
  
-render ::Scale -> Bool -> DiffTreeArr -> Arrangement node -> (Window, drawWindow, GC) -> CommonTypes.Rectangle -> Render ()    
+render :: (DocNode node, DrawableClass drawWindow) =>
+          Scale -> Bool -> DiffTreeArr -> Arrangement node -> (Window, drawWindow, GC) -> CommonTypes.Rectangle -> Render ()    
 render scale arrDb diffTree arrangement (wi,dw,gc) viewedArea =
  do { setLineCap LineCapRound
     ; setLineJoin LineJoinRound
@@ -105,14 +104,15 @@ render scale arrDb diffTree arrangement (wi,dw,gc) viewedArea =
     }
     
 
-renderFocus ::Scale -> Bool -> FocusArr -> Arrangement node -> (Window, drawWindow, GC) -> CommonTypes.Rectangle -> Render ()    
+renderFocus :: (DocNode node, DrawableClass drawWindow) =>
+               Scale -> Bool -> FocusArr -> Arrangement node -> (Window, drawWindow, GC) -> CommonTypes.Rectangle -> Render ()    
 renderFocus scale arrDb focus arrangement (wi, dw, gc) viewedArea =
   let focusArrList = arrangeFocus focus arrangement
   in  do { setLineCap LineCapRound
          ; setLineJoin LineJoinRound
          ; renderArr undefined
                 (wi,dw,gc) arrDb scale origin viewedArea
-                (DiffLeaf False)
+                (DiffLeafArr False Nothing)
                 (OverlayA NoIDA (xA arrangement) (yA arrangement)  
                                 (widthA arrangement) (heightA arrangement) 
                                 0 0 transparent
@@ -120,23 +120,29 @@ renderFocus scale arrDb focus arrangement (wi, dw, gc) viewedArea =
                           focusArrList) 
          }
 
+-- Note: The diff mechanism supports inserted, deleted, and moved nodes, but for the gtk renderer these are simply considered
+--       dirty and redrawn completely, as supporting this kind of incrementality for gtk is much harder than for the webserver.
+mkChildDiffTrees :: DiffTreeArr -> [DiffTreeArr]
+mkChildDiffTrees (DiffLeafArr c Nothing)                = repeat $ DiffLeafArr c Nothing
+mkChildDiffTrees (DiffLeafArr c _)                      = repeat $ DiffLeafArr False Nothing
+mkChildDiffTrees (DiffNodeArr c c' Nothing Nothing dts) = dts ++ repeat (DiffLeafArr False Nothing) -- in case there are too few dts
+mkChildDiffTrees (DiffNodeArr c c' _       _       dts) = repeat (DiffLeafArr False Nothing)
+
 {- make renderArrangement that does background setting (later do this only when needed)
 -}
 renderArr :: (DocNode node, DrawableClass drawWindow) => Region -> (Window, drawWindow, GC) -> Bool -> Scale -> (Int,Int) ->
-                                         (Point, Size) -> DiffTree -> Arrangement node -> Render ()    
+                                         (Point, Size) -> DiffTreeArr -> Arrangement node -> Render ()    
 renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree arrangement =
  do { -- debugLnIO Err (shallowShowArr arrangement ++":"++ show (isCleanDT diffTree));
      --if True then return () else    -- uncomment this line to skip rendering
 
 
-     if (isSelfCleanDT diffTree)  -- if self is clean, only render its children (if present)
-     then if (isCleanDT diffTree)
+     if (isSelfCleanDTArr diffTree)  -- if self is clean, only render its children (if present)
+     then if (isCleanDTArr diffTree)
           then return ()
           else let renderChildren x' y' arrs =
                     do { let (x,y)=(lux+scaleInt scale x', luy+scaleInt scale y')
-                       ; let childDiffTrees = case diffTree of
-                                                DiffLeaf c     -> repeat $ DiffLeaf c
-                                                DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+                       ; let childDiffTrees = mkChildDiffTrees diffTree
                        ; sequence_ $ zipWith (renderArr oldClipRegion (wi,dw,gc) arrDb scale (x, y) viewedArea) childDiffTrees arrs 
                        }
                in case arrangement of
@@ -459,15 +465,11 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
             drawFilledRectangle (Rectangle x y w h) bColor bColor
 
          
-         ; let childDiffTrees = case diffTree of
-                                  DiffLeaf c     -> repeat $ DiffLeaf c
-                                  DiffNode c c' dts -> dts ++ repeat (DiffLeaf False) -- in case there are too few dts
+         ; let childDiffTrees = mkChildDiffTrees diffTree
          ; sequence_ $ zipWith (renderArr oldClipRegion (wi,dw,gc) arrDb scale (x, y) viewedArea) childDiffTrees arrs
          }      
 {-     do { let (x,y,w,h)=(lux+scaleInt scale x', luy+scaleInt scale y', scaleInt scale w', scaleInt scale h')
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False) -- in case there are too few dts
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 
         ; if arrDb
           then
@@ -498,9 +500,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
          ; when (not (isTransparent bColor)) $
             drawFilledRectangle (Rectangle x y w h) bColor bColor
 
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
         ; sequence_ $ zipWith (renderArr oldClipRegion (wi,dw,gc) arrDb scale (x, y) viewedArea) childDiffTrees arrs
         }
 {-
@@ -531,9 +531,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
 -}
     (OverlayA id x' y' w' h' _ _ bColor direction arrs) ->
      do { let (x,y,w,h)=(lux+scaleInt scale x', luy+scaleInt scale y', scaleInt scale w', scaleInt scale h')
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 
         ; let order = case direction of
                         HeadInFront -> reverse
@@ -546,9 +544,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
 
 {-
      do { let (x,y,w,h)=(lux+scaleInt scale x', luy+scaleInt scale y', scaleInt scale w', scaleInt scale h')
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 
         ; if arrDb
           then
@@ -575,9 +571,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
 -}
     (GraphA id x' y' w' h' _ _ bColor _ arrs) ->
      do { let (x,y,w,h)=(lux+scaleInt scale x', luy+scaleInt scale y', scaleInt scale w', scaleInt scale h')
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 
         {- 
            do { when (not (isTransparent bColor)) $
@@ -588,9 +582,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
         ; sequence_ $ reverse $ zipWith (renderArr oldClipRegion (wi,dw,gc) arrDb scale (x, y) viewedArea) childDiffTrees arrs -- reverse so first is drawn in front
         }
  {-   do { let (x,y,w,h)=(lux+scaleInt scale x', luy+scaleInt scale y', scaleInt scale w', scaleInt scale h')
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 
         ; newClipRegion <- regionRectangle $ Rectangle x y w h
         ; regionIntersect newClipRegion oldClipRegion
@@ -613,9 +605,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
      do { let (x,y,w,h)=(lux+scaleInt scale x', luy+scaleInt scale y', scaleInt scale w', scaleInt scale h')
         
         
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 --        ; when arrDb $
 --            drawFilledRectangle dw gc (Rectangle x y w h) vertexColor vertexColor
 
@@ -628,9 +618,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
               ; drawFilledRectangle dw gc (Rectangle x y w h) bgColor bgColor
               }
         
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
         ; when arrDb $
             drawFilledRectangle dw gc (Rectangle x y w h) vertexColor vertexColor
 
@@ -709,9 +697,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
     (StructuralA id arr) -> 
      do { let (x,y,w,h)=( lux+scaleInt scale (xA arr), luy+scaleInt scale (yA arr) 
                         , scaleInt scale (widthA arr), scaleInt scale (heightA arr) )
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 --        ; when arrDb $
 --            drawFilledRectangle dw gc (Rectangle x y w h) structuralBGColor structuralBGColor
        
@@ -721,9 +707,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
     (ParsingA id arr) ->
      do { let (x,y,w,h)=( lux+scaleInt scale (xA arr), luy+scaleInt scale (yA arr) 
                         , scaleInt scale (widthA arr), scaleInt scale (heightA arr) )
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
 --        ; when arrDb $
 --            drawFilledRectangle dw gc (Rectangle x y w h) parsingBGColor parsingBGColor
        
@@ -732,9 +716,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
 
     (LocatorA _ arr) ->
      do {
-        ; let childDiffTrees = case diffTree of
-                                 DiffLeaf c     -> repeat $ DiffLeaf c
-                                 DiffNode c c' dts -> dts ++ repeat (DiffLeaf False)
+        ; let childDiffTrees = mkChildDiffTrees diffTree
         ; renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea (head' "Renderer.renderArr" childDiffTrees) arr
         }
 
