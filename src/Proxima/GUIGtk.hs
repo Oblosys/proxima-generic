@@ -1,4 +1,4 @@
-module Proxima.GUIGtk where
+module Proxima.GUIGtk (initialize, startEventLoop, genericHandler, withCatch) where
 
 {-
 Initialization of the document is done with timer handler, because it may show a dialog (about the
