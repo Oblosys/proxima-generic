@@ -673,7 +673,6 @@ handleCommand (settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewe
       do { html <- genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
                      castLay $ FindLay (Just str)
          ; setViewedAreaHtml <- mkSetViewedAreaHtml settings viewedAreaRef actualViewedAreaRef
-         ; seq (read "x" :: Int) $ return ()
          ; return $ html ++ [setViewedAreaHtml]
          }
 
