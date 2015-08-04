@@ -58,6 +58,7 @@ arrangePresentation settings state fontMetricsRef focus oldArrangement dt pres =
 --    ; debugLnIO Arr ("Old arrangement "++ show oldArrangement)
 
     ; (attrTree, idCounter', maxFDepth) <- fixed settings fontMetricsRef (getIDACounter state') focus prunedPres pres extendedViewedArea extendedOldViewedArea  screenWidth screenHeight oldArrangement
+    ; debugLnIO Arr $ "Arrangement computed " ++ show attrTree
 
     ; let state'' = state' { getIDACounter = idCounter' }
     ; when (maxFDepth > 1) $

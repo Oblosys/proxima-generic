@@ -23,8 +23,8 @@ import Graphics.UI.Gtk hiding (Scale, Solid, Size, Layout, Settings, Region, fil
 import Graphics.UI.Gtk.Gdk.GC (GC, gcSetValues, newGCValues, foreground)
 import Graphics.Rendering.Cairo hiding (Path)
 import Proxima.GUIGtk
-
-
+import Debug.Trace
+import Control.Monad.IO.Class
 {-
 TODO:
 - underline and strikeout don't work.
@@ -100,7 +100,10 @@ render scale arrDb diffTree arrangement (wi,dw,gc) viewedArea =
  do { setLineCap LineCapRound
     ; setLineJoin LineJoinRound
 --    ; seq (length (show arrangement)) $ return ()
+    ;   liftIO $ putStrLn "Before RendererGtk.renderArr"
+   
     ; renderArr undefined (wi,dw,gc) arrDb scale origin viewedArea diffTree arrangement
+    ;   liftIO $ putStrLn "After RendererGtk.renderArr"
     }
     
 
@@ -133,12 +136,12 @@ mkChildDiffTrees (DiffNodeArr c c' _       _       dts) = repeat (DiffLeafArr Fa
 renderArr :: (DocNode node, DrawableClass drawWindow) => Region -> (Window, drawWindow, GC) -> Bool -> Scale -> (Int,Int) ->
                                          (Point, Size) -> DiffTreeArr -> Arrangement node -> Render ()    
 renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree arrangement =
- do { -- debugLnIO Err (shallowShowArr arrangement ++":"++ show (isCleanDT diffTree));
+ do { --liftIO $ debugLnIO Err (shallowShowArr arrangement ++":"++ show (isCleanDTArr diffTree));
      --if True then return () else    -- uncomment this line to skip rendering
 
 
      -- TODO: incrementality is still buggy, so for now we disable it for gtk (regardless of Settings.rendererIncrementality)
-     if False -- (isSelfCleanDTArr diffTree)  -- if self is clean, only render its children (if present)
+    ; if False -- (isSelfCleanDTArr diffTree)  -- if self is clean, only render its children (if present)
      then if (isCleanDTArr diffTree) 
           then return ()
           else let renderChildren x' y' arrs =
@@ -194,7 +197,7 @@ renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree ar
            
            ; fExts <- fontExtents     
            ; moveTo (fromIntegral x) (fromIntegral y + fontExtentsAscent fExts)
-           
+           --; liftIO . putStrLn $ "Rendering StringA " ++ str
            ; showText str
            }
   {-      ; when (str /= "") $ 

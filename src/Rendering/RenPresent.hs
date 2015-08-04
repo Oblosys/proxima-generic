@@ -48,7 +48,7 @@ render settings state (ArrangementLevel arrOld focusOld _) ren@(RenderingLevel s
                      else Rendering.Renderer.render scale debugging (DiffLeafArr False Nothing) arr'
        focusRendering = renderFocus scale debugging focus arr'
        size        = (widthA arr', heightA arr')
-   in  {-debug Arr ("\n\n\nRender: old/new size "++ show (widthA arrOld, heightA arrOld)++ show (widthA arr', heightA arr')
+   in  {- debug Arr ("\n\n\nRender: old/new size "++ show (widthA arrOld, heightA arrOld)++ show (widthA arr', heightA arr')
                   ++ "\nDiffTree: "++ show diffTree
                   ++"Updated Regions" ++ show updRegions'
                   ) 

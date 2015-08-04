@@ -20,6 +20,8 @@ interpretIO :: (DocNode node, Eq token, Show doc, Show enr, Show token, Show nod
 interpretIO scannerSheet state low high = castRemainingEditOps $ \editLow ->
   do { (editsHigh, state', low') <- parseIO scannerSheet state low high editLow
      ; debugLnIO Lay $ "Edit Layout: "++show editLow
+     --; debugLnIO Lay $ "LAYOUT IS "++show low'
+     
      ; return (editsHigh, state', low')
      }
 

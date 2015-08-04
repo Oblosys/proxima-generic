@@ -292,7 +292,7 @@ drawRendering :: DrawableClass d =>
                  IORef (RenderingLevel doc enr node clip token) -> Window -> Viewport -> d -> IO ()
 drawRendering settings renderingLvlVar wi vp pm = 
  do { RenderingLevel scale mkPopupMenu rendering _ (w,h) debug updRegions _ <- readIORef renderingLvlVar
---    ; putStrLn "Drawing rendering"
+    ; putStrLn "Drawing rendering"
     ; let drawFilledRectangle drw grc ((x,y),(w,h)) = drawRectangle drw grc True x y w h
     ; gc <- gcNew pm
         
@@ -308,8 +308,10 @@ drawRendering settings renderingLvlVar wi vp pm =
                                         -- since arranger already only arranges elements in view
                                         -- currently, it only prevents rendering edges out of view
  
-     
-    ; renderWithDrawable pm theRendering  
+
+    ; putStrLn "Before renderWithDrawable"     
+    ; renderWithDrawable pm theRendering
+    ; putStrLn "After renderWithDrawable" 
 {-    ; let (width, height) = (200,200)
     ; renderWithDrawable pm $ do
                 setSourceRGB 1 0 0

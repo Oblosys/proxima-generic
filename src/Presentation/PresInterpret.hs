@@ -11,13 +11,13 @@ import Presentation.PresentationParsing hiding (parse, parseIO)
 import Proxima.Wrap
 
 --interpretIO :: LayerStatePres -> low -> high -> editLow -> IO (editHigh, state, low)
-interpretIO :: (DocNode node, Ord token, Show token, Show enr) =>
+interpretIO :: (DocNode node, Ord token, Show token, Show enr, Show doc) =>
                ParseSheet doc enr node clip token -> LayerStatePres -> PresentationLevel doc enr node clip token ->
                EnrichedDocLevel enr doc -> [EditPresentation doc enr node clip token] ->
                IO ([EditEnrichedDoc doc enr node clip token], LayerStatePres, PresentationLevel doc enr node clip token)
 interpretIO parseSheet state low high = castRemainingEditOps $ \editLow ->
   do { (editHigh, state', low') <- parseIO parseSheet state low high editLow
---     ; debugLnIO Prs $ "Edit Enr:"++show editHigh
+     ; debugLnIO Prs $ "Edit Enr:"++show editHigh
      ; return ([editHigh], state', low')
      }
 

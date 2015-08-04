@@ -9,13 +9,14 @@ import Proxima.Wrap
 import qualified Data.Map as Map
 import Data.Map (Map)
 
-presentIO :: PresentationSheet doc enr node clip token -> LayerStatePres -> EnrichedDocLevel enr doc ->
+presentIO :: (Show token, Show node, Show enr, Show doc) => 
+             PresentationSheet doc enr node clip token -> LayerStatePres -> EnrichedDocLevel enr doc ->
              PresentationLevel doc enr node clip token -> [EditEnrichedDoc' doc enr node clip token] ->
              IO ([EditPresentation' doc enr node clip token], LayerStatePres, EnrichedDocLevel enr doc)
 presentIO presentationSheet state high low@(PresentationLevel pres layout) = castRemainingEditOps $ \editHigh ->
   let (editLow, state', high') = present presentationSheet state high low editHigh
   in do { -- debugLnIO Prs ("editEnr':"++show editHigh)
-        --; debugLnIO Prs ("editPres':"++show editLow)
+        ; debugLnIO Prs ("editPres':"++show editLow)
         ; return $ ([editLow], state', high')
         }
 
