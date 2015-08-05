@@ -16,7 +16,7 @@ import Control.Exception
 import Data.Char
 import System.Directory
 import Happstack.Server
-import Happstack.Server.Internal.Monads (anyRequest)
+import Happstack.Server.Internal.Monads (anyRequest) -- TODO: might be able to use anyPath instead
 import System.Log.Logger (updateGlobalLogger, rootLoggerName, setLevel, Priority(..))
 import System.Environment
 import Data.Time
@@ -45,7 +45,7 @@ import Control.Monad.Writer hiding (when)
 import Data.List
 
 
-stub name = error $ "Proxima.GUIServer."++name 
+maxFileUploadSize = 1 * 1024 * 1024
 
 initialize :: ( Settings, 
                 ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
@@ -177,8 +177,7 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
                            ; fmap (noCache. setTypeToHTML) $
                                 fileServe [] filePath
                            })
-    , dir "Document.xml" $ do { liftIO $ putStrLn "ja\n\n\n\n\n\n\n"
-                              ; _ <- liftIO $ genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
+    , dir "Document.xml" $ do { _ <- liftIO $ genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
                                      castEnr $ SaveFileEnr "Document.xml" 
                                 -- ignore the html rendering of the save command (is empty)
                               ; fmap (setHeader "Content-Disposition" "attachment;") $
@@ -281,63 +280,67 @@ handlers :: (Show token, Show node, Show enr, Show doc) =>
             [ServerPartT IO Response]
 handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewedAreaRef mPreviousSessionRef
          sessionId isPrimarySession nrOfSessions = 
-  [ {-
-    dir "upload"
-      [ withData $ \(Upl doc) -> 
-          [ method POST $
-             do { when (doc /= "") $ liftIO $
-                   do { fh <- openFile "Document.xml" WriteMode
-                      ; hPutStrLn fh doc
-                      ; hClose fh
-                      ; genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
-                          castEnr $ OpenFileEnr "Document.xml" 
-                        -- ignore html output, the page will be reloaded after pressing the button
-                      ; return ()
-                      }
-                        -- simply serving the Editor.xml does not work, as the browser will have upload in its menu bar
-                        -- (also the page doesn't load correctly)
-                        -- Instead, we show a page that immediately goes back to the editor page
-                ; let responseHtml =
-                        "<html><head><script type='text/javascript'><!--\n" ++
-                        "history.go(-1);" ++
-                        "\n--></script></head><body></body></html>"
-                        -- newlines between <!-- & javascript and javascript and --> are necessary!!
-                        --"<html><body>Document has been uploaded.<p><button onclick=\"location.href='/'\">Return to editor</button></html>"
-                ; modifyResponseW (setHeader "Content-Type" "text/html") $ -- todo there must be a nicer way to get an html response
-                    ok $ toResponse responseHtml
-                         
-                }
-          ]
-      ]
-      -}
-   dir "handle" $
-      withData (\cmds -> methodSP GET $ 
-                             do { liftIO $ putStrLn $ "Command received " ++ take 60 (show cmds)
-                                --; liftIO $ putStrLn "Pausing.."
-                                --; liftIO $ threadDelay 1000000
-                                --; liftIO $ putStrLn "Done"
-                                ; (responseHtml,responseLength) <-
-                                    liftIO $ catchExceptions $
-                                      do { html <- handleCommands params menuR actualViewedAreaRef mPreviousSessionRef
-                                                                  sessionId isPrimarySession nrOfSessions
-                                                                  cmds
-                                         ; let responseLength = length html 
-                                         ; seq responseLength $ return ()
-                                         ; return (html, responseLength)
-                                         } -- kind of tricky, we need to make sure that the html string is evaluated here, so
+  [ dir "upload" $ methodSP POST $
+     do { rq <- askRq
+        -- TODO: Pretty hacky and unsafe code. Should have error handling and check wether uploaded document parses, since otherwise editor resets to default document.
+        --; liftIO $ putStrLn $ "Before decodeBody" ++ show rq
+        ; decodeBody (defaultBodyPolicy "/tmp/" maxFileUploadSize 1000 1000) -- Document.xml file size, data size, and headers size (latter two should be small) 
+        ; withData $ \(UploadedFileRef tmpFilePath) ->
+           do { liftIO $ 
+                 do { putStrLn tmpFilePath
+                    ; tempFileH <- openFile tmpFilePath ReadMode
+                    ; docContents <- hGetContents tempFileH
+                    ; seq (length . show $ docContents) $ return ()
+                    ; hClose tempFileH
+                    ; when (docContents /= "") $ liftIO $
+                       do { putStrLn $ "Document.xml uploaded:\n" ++ show tmpFilePath
+                          ; fh <- openFile "Document.xml" WriteMode
+                          ; hPutStrLn fh docContents
+                          ; hClose fh
+                          ; genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
+                              castEnr $ OpenFileEnr "Document.xml" 
+                            -- ignore html output, the page will be reloaded after pressing the button
+                          ; return ()
+                          }
+                            -- simply serving the Editor.xml does not work, as the browser will have upload in its menu bar
+                            -- (also the page doesn't load correctly)
+                            -- Instead, we show a page that immediately goes back to the editor page
+                    }
+              }
+        ; let responseHtml =
+                "<html><head><script type='text/javascript'><!--\n" ++
+                "window.location.href = document.referrer;" ++
+                "\n--></script></head><body></body></html>"
+                -- newlines between <!-- & javascript and javascript and --> are necessary!!
+                --"<html><body>Document has been uploaded.<p><button onclick=\"location.href='/'\">Return to editor</button></html>"
+        ; fmap (setHeader "Content-Type" "text/html") $ -- todo there must be a nicer way to get an html response
+            anyRequest $ ok $ toResponse responseHtml   
+        }                      
+     
+  , dir "handle" . withData $ \cmds -> methodSP GET $ 
+     do { liftIO $ putStrLn $ "Command received " ++ take 60 (show cmds)
+        --; liftIO $ putStrLn "Pausing.."
+        --; liftIO $ threadDelay 1000000
+        --; liftIO $ putStrLn "Done"
+        ; (responseHtml,responseLength) <-
+            liftIO $ catchExceptions $
+              do { html <- handleCommands params menuR actualViewedAreaRef mPreviousSessionRef
+                                          sessionId isPrimarySession nrOfSessions
+                                          cmds
+                 ; let responseLength = length html 
+                 ; seq responseLength $ return ()
+                 ; return (html, responseLength)
+                 } -- kind of tricky, we need to make sure that the html string is evaluated here, so
                                            -- any possible exceptions are thrown and caught. If not, HApps silently sends the
                                            -- exception text as the html response :-(
 
---                                ; liftIO $ putStrLn $ "\n\n\n\ncmds = "++show cmds
---                                ; liftIO $ putStrLn $ "\n\n\nresponse = \n" ++ show responseHTML
-                                ; liftIO $ putStrLn $ "Sending response sent to client (length: "++show responseLength++ ")" 
+--        ; liftIO $ putStrLn $ "\n\n\n\ncmds = "++show cmds
+--        ; liftIO $ putStrLn $ "\n\n\nresponse = \n" ++ show responseHTML
+        ; liftIO $ putStrLn $ "Sending response sent to client (length: "++show responseLength++ ")" 
 
-                                --; modifyResponseW noCache $
-                                ;  anyRequest $ ok $ toResponse responseHtml 
-                                }
-                             
-                           )
-      
+        --; modifyResponseW noCache $
+        ;  anyRequest $ ok $ toResponse responseHtml 
+        }      
   ]  
 
 -- NOTE: this does not catch syntax errors in the fromData on Commands, as these are handled before we get in the IO monad.
@@ -455,10 +458,13 @@ makeNewSessionCookie serverInstanceId currentSessionsRef =
 whenPrimary isPrimarySession act = if not isPrimarySession then return [] else act
      
  
-newtype Upl = Upl String deriving Show
+newtype UploadedFileRef = UploadedFileRef String deriving Show
 
-instance FromData Upl where
-  fromData = liftM Upl (look "documentFile")
+instance FromData UploadedFileRef where
+  fromData = 
+   do { (tempFilePath, _, _) <- lookFile "documentFile"
+      ; return $ UploadedFileRef tempFilePath 
+      }
 
 
 data Commands = Commands Int String deriving (Show, Read)
