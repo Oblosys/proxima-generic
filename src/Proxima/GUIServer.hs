@@ -134,19 +134,6 @@ the monad, but it will only do something if the header is not set in the out par
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
 
-{-
-handleCommand :: (Show token, Show node, Show enr, Show doc) => 
-               (Settings
-               ,((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]))
-               , IORef (RenderingLevel doc enr node clip token) 
-               , IORef CommonTypes.Rectangle 
-               ) -> IORef [Wrapped doc enr node clip token] -> IORef CommonTypes.Rectangle ->
-               SessionId -> Bool -> Int ->
-               Command -> IO [String]
-handleCommand (settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewedAreaRef
-              sessionId isPrimarySession nrOfSessions command =
-
--}
 server :: (Show token, Show node, Show enr, Show doc) => 
           ( Settings, 
             ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
@@ -198,7 +185,7 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
                                  serveFile (asContentType "application/xml")    "Document.xml"
                               }
     
-    --, sessionHandler params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
+    , sessionHandler params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
     ]
 
 {-
@@ -226,8 +213,23 @@ withAgentIsMIE f = withRequest $ \rq ->
                      -- XHTML is not a big problem, but for SVG we need an alternative
                      -- Maybe we also need to switch to POST for IE, since it
                      -- cannot handle large queries with GET
+-}
 
 
+sessionHandler :: (Show token, Show node, Show enr, Show doc) => 
+                  ( Settings, 
+                    ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+                      IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
+                    )
+                  , IORef (RenderingLevel doc enr node clip token)
+                  , IORef Rectangle) ->
+                  (MVar ()) ->
+                  IORef [Wrapped doc enr node clip token] ->
+                  IORef CommonTypes.Rectangle ->
+                  (IORef (Maybe SessionId)) ->
+                  ServerInstanceId ->
+                  CurrentSessionsRef ->
+                  ServerPartT IO Response
 sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex menuR actualViewedAreaRef mPreviousSessionRef
                serverInstanceId currentSessionsRef = 
     do { -- liftIO $ putStrLn "Trying to obtain mutex"
@@ -247,9 +249,9 @@ sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex me
          then liftIO $ putStrLn "\n\nPrimary editing session"
          else liftIO $ putStrLn "\n\nSecondary editing session"
        ; liftIO $ putStrLn $ "Session "++show sessionId ++", all sessions: "++ show (currentSessions) 
-       ; url <- withRequest  $ \r -> return $ rqURL r
---       ; liftIO $ putStrLn $ "URL: "++ url
-       ; response <- multi $ handlers params menuR actualViewedAreaRef mPreviousSessionRef sessionId isPrimarySession (length currentSessions)
+       ; rq <- askRq
+       ; liftIO $ putStrLn $ "URL: "++ rqURL rq
+       ; response <- msum $ handlers params menuR actualViewedAreaRef mPreviousSessionRef sessionId isPrimarySession (length currentSessions)
 
        ; liftIO $ writeIORef currentSessionsRef $ 
                           ( currentSessions 
@@ -263,8 +265,9 @@ sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex me
        }
                      
 handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewedAreaRef mPreviousSessionRef
-         sessionId isPrimarySession nrOfSessions = debugFilter $ -- does debugFilter even work? 
-  [ dir "upload"
+         sessionId isPrimarySession nrOfSessions = 
+  [ {-
+    dir "upload"
       [ withData $ \(Upl doc) -> 
           [ method POST $
              do { when (doc /= "") $ liftIO $
@@ -319,8 +322,9 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
                              
                            ])
       ] 
-  ]  
 -}
+  ]  
+
 -- NOTE: this does not catch syntax errors in the fromData on Commands, as these are handled before we get in the IO monad.
 -- This only occurs when there is a problem with string quotes in the command string. If parsing fails, we get a happs server error:... 
 -- The separate commands on the other hand are parsed safely.
@@ -345,7 +349,7 @@ type Sessions = [(SessionId, UTCTime)]
 type CurrentSessionsRef = IORef (Sessions, SessionId)
 
 
-removeExpiredSessions :: CurrentSessionsRef -> ServerPart ()
+removeExpiredSessions :: CurrentSessionsRef -> ServerPartT IO ()
 removeExpiredSessions currentSessionsRef = liftIO $
  do { time <- getCurrentTime
     ; (currentSessions, idCounter) <- readIORef currentSessionsRef
@@ -354,9 +358,9 @@ removeExpiredSessions currentSessionsRef = liftIO $
         , idCounter
         )
     }
-{-
-getCookieSessionId :: ServerInstanceId -> CurrentSessionsRef -> ServerPart SessionId
-getCookieSessionId serverInstanceId currentSessionsRef = stub "startEventLoop"withRequest $ \rq ->
+
+getCookieSessionId :: ServerInstanceId -> CurrentSessionsRef -> ServerPartT IO SessionId
+getCookieSessionId serverInstanceId currentSessionsRef = askRq >>= \rq ->
  do { let mCookieSessionId = parseCookie serverInstanceId rq
     ; (currentSessions,idCounter) <- liftIO $ readIORef currentSessionsRef
 --    ; liftIO $ putStrLn $ "parsed cookie id is " ++ show mCookieSessionId
@@ -374,7 +378,7 @@ getCookieSessionId serverInstanceId currentSessionsRef = stub "startEventLoop"wi
                    )
                  
                -- renew the cookie
-               ; addCookie cookieLifeTime $ mkCookie (mkCookieName serverInstanceId) $ show cookieSessionId
+               ; addCookie (MaxAge cookieLifeTime) $ mkCookie (mkCookieName serverInstanceId) $ show cookieSessionId
                ; return cookieSessionId
                }
 
@@ -383,7 +387,6 @@ getCookieSessionId serverInstanceId currentSessionsRef = stub "startEventLoop"wi
     ; liftIO $ putStrLn $ "SessionId:" ++ show sessionId
     ; return sessionId
     } 
--}
 
 
 mkCookieName :: ServerInstanceId -> String
