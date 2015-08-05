@@ -16,6 +16,7 @@ import Control.Exception
 import Data.Char
 import System.Directory
 import Happstack.Server
+import Happstack.Server.Internal.Monads (anyRequest)
 import System.Log.Logger (updateGlobalLogger, rootLoggerName, setLevel, Priority(..))
 import System.Environment
 import Data.Time
@@ -162,10 +163,9 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
     
     -- these first handlers do not need to be in the session, since they don't affect the document
  -- old comment: todo handle defaults!!
-    {-
     , withAgentIsMIE $ \agentIsMIE ->
-        (methodSP GET $ do { -- liftIO $ putStrLn $ "############# page request"
-                             let setTypeToHTML = if agentIsMIE 
+        (methodSP GET $ do { liftIO $ putStrLn $ "############# page request"
+                           ; let setTypeToHTML = if agentIsMIE 
                                                  then setHeader "Content-Type" "text/html"
                                                  else id
                                            
@@ -173,10 +173,9 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
                            ; exist <- liftIO $ doesFileExist filePath
                            ; if exist then return () else error $ "File not found: " ++ filePath  
                                     
-                           ; modifyResponseSP (noCache. setTypeToHTML) $
+                           ; fmap (noCache. setTypeToHTML) $
                                 fileServe [] filePath
                            })
-      -}           
     , dir "Document.xml" $ do { liftIO $ putStrLn "ja\n\n\n\n\n\n\n"
                               ; _ <- liftIO $ genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
                                      castEnr $ SaveFileEnr "Document.xml" 
@@ -204,8 +203,9 @@ noCache :: Response -> Response
 noCache = addHeader "Expires" "Mon, 28 Jul 2000 11:24:47 GMT"
 -- TODO: figure out if noCache is really necessary, both for editor.xml and handle
 -- It does not work for IE
- {-
-withAgentIsMIE f = withRequest $ \rq -> 
+ 
+withAgentIsMIE f = f False
+      {- withRequest $ \rq -> 
                      (unServerPartT $ f ("MSIE" `isInfixOf` (show $ getHeader "user-agent" rq))) rq
                      -- not the most elegant method of checking for Internet explorer
 
@@ -263,7 +263,21 @@ sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex me
        --; liftIO $ putStrLn "Mutex released"
        ; return response
        }
-                     
+       
+handlers :: (Show token, Show node, Show enr, Show doc) => 
+            ( Settings, 
+              ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+                IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
+              )
+            , IORef (RenderingLevel doc enr node clip token)
+            , IORef Rectangle) ->
+            IORef [Wrapped doc enr node clip token] ->
+            IORef CommonTypes.Rectangle ->
+            (IORef (Maybe SessionId)) ->
+            SessionId ->
+            Bool ->
+            Int ->
+            [ServerPartT IO Response]
 handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewedAreaRef mPreviousSessionRef
          sessionId isPrimarySession nrOfSessions = 
   [ {-
@@ -294,8 +308,9 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
                 }
           ]
       ]
-  , dir "handle" 
-      [ withData (\cmds -> [ methodSP GET $ 
+      -}
+   dir "handle" $
+      withData (\cmds -> methodSP GET $ 
                              do { liftIO $ putStrLn $ "Command received " ++ take 60 (show cmds)
                                 --; liftIO $ putStrLn "Pausing.."
                                 --; liftIO $ threadDelay 1000000
@@ -320,9 +335,8 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
                                 ;  anyRequest $ ok $ toResponse responseHtml 
                                 }
                              
-                           ])
-      ] 
--}
+                           )
+      
   ]  
 
 -- NOTE: this does not catch syntax errors in the fromData on Commands, as these are handled before we get in the IO monad.
