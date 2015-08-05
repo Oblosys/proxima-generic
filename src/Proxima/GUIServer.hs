@@ -15,10 +15,7 @@ import Data.Time.Clock
 import Control.Exception
 import Data.Char
 import System.Directory
-{- HAppS -}
---import HAppS.Server hiding (unwrap)
---import HAppS.Server.SimpleHTTP
---import HAppS.State
+import Happstack.Server
 import System.Environment
 import Data.Time
 import System.Locale
@@ -27,19 +24,6 @@ import qualified Data.IntMap as IntMap
 import Control.Monad.Trans
 import Data.List
 import qualified Data.ByteString.Char8 as BS
-{- End of HApps imports -}
-
-{- Salvia imports 
-import Data.Maybe
-import Data.Record.Label
---import Misc.Misc
-import Control.Concurrent.STM
-import Control.Monad.State
-import Network.Protocol.Http hiding (server)
-import Network.Protocol.Uri
-import Network.Salvia.Httpd
-import Network.Salvia.Handlers
- End of Salvia imports -}
 
 
 import Control.Concurrent
@@ -58,12 +42,9 @@ import Control.Monad hiding (when)
 import Control.Monad.Writer hiding (when)
 import Data.List
 
-{-
-            Settings ->
-            ((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
-            IORef Rectangle ->
 
--}
+stub name = error $ "Proxima.GUIServer."++name 
+
 initialize :: ( Settings, 
                 ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
                   IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
@@ -91,7 +72,7 @@ startEventLoop :: ( Settings,
                   , IORef (RenderingLevel doc enr node clip token)
                   , IORef Rectangle) ->
                   IO ()
-startEventLoop params@(settings,h,rv,vr) =  error "Proxima.GUIServer.startEventLoop" {-  withProgName "proxima" $
+startEventLoop params@(settings,h,rv,vr) = withProgName "proxima" $
  do { mutex <- newMVar ()
     ; menuR <- newIORef []
     ; actualViewedAreaRef <- newIORef ((0,0),(0,0)) -- is used when reducing the viewed area, see mkSetViewedAreaHtml
@@ -106,7 +87,7 @@ startEventLoop params@(settings,h,rv,vr) =  error "Proxima.GUIServer.startEventL
     ; hSetBuffering stdin NoBuffering
     ; stdInAvailable <- do { hReady stdin
                            ; return True
-                           } `Control.Exception.catch` \(err :: SomeException) -> return False
+                           } `Control.Exception.catch` ((\err -> return False) :: SomeException -> IO Bool)
     -- this seems to be the only way to determine whether stdin is EOF!
     -- using hIsEOF works if it is EOF, but hangs because of buffering issues when stdin is not EOF
     
@@ -151,7 +132,8 @@ Header modifications must therefore be applied to out rather than be fmapped to 
 -}
 
 server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actualViewedAreaRef mPreviousSessionRef serverInstanceId currentSessionsRef =
-  simpleHTTP (Conf (serverPort settings) Nothing) 
+  stub "server"
+{-  simpleHTTP (Conf (serverPort settings) Nothing) 
     -- these first handlers do not need to be in the session, since they don't affect the document
     [ dir "img"
         [ fileServe [] "img" ]  
@@ -319,15 +301,15 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
                            ])
       ] 
   ]  
-
+-}
 -- NOTE: this does not catch syntax errors in the fromData on Commands, as these are handled before we get in the IO monad.
 -- This only occurs when there is a problem with string quotes in the command string. If parsing fails, we get a happs server error:... 
 -- The separate commands on the other hand are parsed safely.
 catchExceptions io =
-  io `Control.Exception.catch` \(exc :: SomeException) ->
+  io `Control.Exception.catch` \exc ->
        do { let exceptionText = 
                   "\n\n\n\n###########################################\n\n\n" ++
-                  "Exception: " ++ show exc ++ "\n\n\n" ++
+                  "Exception: " ++ show (exc :: SomeException) ++ "\n\n\n" ++
                   "###########################################" 
           
           ; putStrLn exceptionText
@@ -353,9 +335,9 @@ removeExpiredSessions currentSessionsRef = liftIO $
         , idCounter
         )
     }
-
+{-
 getCookieSessionId :: ServerInstanceId -> CurrentSessionsRef -> ServerPart SessionId
-getCookieSessionId serverInstanceId currentSessionsRef = withRequest $ \rq ->
+getCookieSessionId serverInstanceId currentSessionsRef = stub "startEventLoop"withRequest $ \rq ->
  do { let mCookieSessionId = parseCookie serverInstanceId rq
     ; (currentSessions,idCounter) <- liftIO $ readIORef currentSessionsRef
 --    ; liftIO $ putStrLn $ "parsed cookie id is " ++ show mCookieSessionId
@@ -382,10 +364,11 @@ getCookieSessionId serverInstanceId currentSessionsRef = withRequest $ \rq ->
     ; liftIO $ putStrLn $ "SessionId:" ++ show sessionId
     ; return sessionId
     } 
+-}
 
 
-
-mkCookieName (serverInstanceId::ServerInstanceId) = "Proxima_"++serverInstanceId
+mkCookieName :: ServerInstanceId -> String
+mkCookieName serverInstanceId = "Proxima_"++serverInstanceId
 -- The serverInstanceId (server start-up time in epoch seconds) is added to distinguish between
 -- several editors being used in a single browser.
 
@@ -400,7 +383,7 @@ parseCookie serverInstanceId rq =
                             -- Therefore we must do this stupid show safeRead thing instead of unpack
                             -- Even weirder is that it does work in GHC when importing ByteString.Char8, but not in scion
         Just Nothing -> Nothing -- should not occur, since show safeRead should always yield a string
-        Just (Just (cookieHeader :: String)) -> getCookieFromHeader cookieHeader
+        Just (Just cookieHeader) -> getCookieFromHeader (cookieHeader :: String)
     }
  where getCookieFromHeader [] = Nothing
        getCookieFromHeader xs@(_:xs') = 
@@ -409,9 +392,9 @@ parseCookie serverInstanceId rq =
          else case safeRead $ takeWhile (/= ';') $ drop (length cookiePrefix) xs of
                 Nothing -> -- the pathological case that 'Proxima_SERVERID=' appears in the value of another cookie
                            getCookieFromHeader $ drop (length cookiePrefix) xs
-                Just (valueStr :: String) ->
-                  case safeRead valueStr of
-                    Just (key::Int) -> return key
+                Just valueStr  ->
+                  case safeRead (valueStr:: String) of
+                    Just key -> return (key :: Int)
                     Nothing -> -- cannot occur, since 'Proxima_SERVERID=' followed by '".."' cannot appear in the value of another
                                -- cookie (the double quotes would have been escaped)
                                -- hence, when we have 'Proxima_SERVERID=".."' the .. will be a valid session key
@@ -425,7 +408,7 @@ makeNewSessionCookie serverInstanceId currentSessionsRef =
     
     ; let newSessionId = idCounter -- need a fresh unique id, otherwise an old cookie may contain the same id
           newSession = (newSessionId, time)
-    ; addCookie cookieLifeTime $ mkCookie (mkCookieName serverInstanceId) $ show newSessionId
+    ; addCookie (MaxAge cookieLifeTime) $ mkCookie (mkCookieName serverInstanceId) $ show newSessionId
     
     ; liftIO $ writeIORef currentSessionsRef $ (currentSessions ++ [newSession], idCounter + 1)
     ; return newSessionId
@@ -710,13 +693,13 @@ handleCommand (settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewe
 
         ; return $ html1++["<div op='clear'></div>"]++html2
         }
--}     
+
 genericHandler :: (Show token, Show node, Show enr, Show doc) => Settings ->
                ((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token])) ->
                IORef (RenderingLevel doc enr node clip token) -> IORef CommonTypes.Rectangle -> 
                () -> -- is here so the type is compatible with genericHandler from GUIGtk
                EditRendering doc enr node clip token -> IO [String]
-genericHandler settings handler renderingLvlVar viewedAreaRef () evt = error "Proxima.GUIServer.genericHandler" {-
+genericHandler settings handler renderingLvlVar viewedAreaRef () evt =
  do { renderingLvl <- readIORef renderingLvlVar
     ; putStrLn $ "Generic handler server started for edit op: " ++ show evt
     ; viewedArea <- readIORef viewedAreaRef
@@ -769,4 +752,4 @@ mkSetViewedAreaHtml settings viewedAreaRef actualViewedAreaRef =
     --; putStr $ "set client viewed area: " ++ show (x,y)
     ; return $ "<div op='setViewedArea' x='"++show x'++"' y='"++show y'++"' w='"++show w++"' h='"++show h++"'></div>"
     }
--}
+
