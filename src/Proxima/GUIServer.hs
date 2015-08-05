@@ -16,6 +16,7 @@ import Control.Exception
 import Data.Char
 import System.Directory
 import Happstack.Server
+import System.Log.Logger (updateGlobalLogger, rootLoggerName, setLevel, Priority(..))
 import System.Environment
 import Data.Time
 import System.Locale
@@ -65,7 +66,8 @@ initialize (settings,handler,renderingLvlVar,viewedAreaRef,_) =
 withCatch :: IO a -> IO a
 withCatch io = io
 
-startEventLoop :: ( Settings, 
+startEventLoop :: (Show token, Show node, Show enr, Show doc) =>
+                  ( Settings, 
                     ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
                       IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
                     )
@@ -79,7 +81,8 @@ startEventLoop params@(settings,h,rv,vr) = withProgName "proxima" $
     ; mPreviousSessionRef <- newIORef Nothing
 
     ; currentSessionsRef <- newIORef ([],0) -- list of active session and session id counter
-                                           
+                               
+    ; updateGlobalLogger rootLoggerName (setLevel INFO)            
     ; serverInstanceId <- mkServerInstanceId settings
     ; putStrLn $ "Starting Proxima server on port " ++ show (serverPort settings) ++ "."
     ; let startServer = server params mutex menuR actualViewedAreaRef mPreviousSessionRef serverInstanceId currentSessionsRef
@@ -131,21 +134,48 @@ the monad, but it will only do something if the header is not set in the out par
 Header modifications must therefore be applied to out rather than be fmapped to the monad.
 -}
 
+{-
+handleCommand :: (Show token, Show node, Show enr, Show doc) => 
+               (Settings
+               ,((RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]))
+               , IORef (RenderingLevel doc enr node clip token) 
+               , IORef CommonTypes.Rectangle 
+               ) -> IORef [Wrapped doc enr node clip token] -> IORef CommonTypes.Rectangle ->
+               SessionId -> Bool -> Int ->
+               Command -> IO [String]
+handleCommand (settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewedAreaRef
+              sessionId isPrimarySession nrOfSessions command =
+
+-}
+server :: (Show token, Show node, Show enr, Show doc) => 
+          ( Settings, 
+            ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+              IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
+            )
+          , IORef (RenderingLevel doc enr node clip token)
+          , IORef Rectangle) ->
+          (MVar ()) ->
+          IORef [Wrapped doc enr node clip token] ->
+          IORef CommonTypes.Rectangle ->
+          (IORef (Maybe SessionId)) ->
+          ServerInstanceId ->
+          CurrentSessionsRef ->
+          IO ()
 server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actualViewedAreaRef mPreviousSessionRef serverInstanceId currentSessionsRef =
-  stub "server"
-{-  simpleHTTP (Conf (serverPort settings) Nothing) 
+  simpleHTTP nullConf { port = serverPort settings, logAccess = Just logMAccess } . msum $
+    [ dir "favicon.ico"                      $ serveFile (asContentType "image/x-icon") "src/proxima/etc/favicon.ico"
+    , dir "apple-touch-icon-precomposed.png" $ serveFile (asContentType "image/png")    "src/proxima/etc/Uncle-Oblomov.png"
+    , dir "startup.png"                      $ serveFile (asContentType "image/png")    "src/proxima/etc/Uncle-Oblomov.png"
+    , dir "img" $ do { neverExpires
+                     ; serveDirectory DisableBrowsing [] "img"
+                     }
+    , dir "etc" $ msum [ serveDirectory DisableBrowsing [] "src/proxima/etc"
+                       , uriRest $ \pth -> notFound $ toResponse $ "File not found: src/proxima/etc/"++pth
+                       ]
+    
     -- these first handlers do not need to be in the session, since they don't affect the document
-    [ dir "img"
-        [ fileServe [] "img" ]  
-    , dir "etc"
-          [ fileServe [] "src/proxima/etc" ]  
-    , dir "apple-touch-icon-precomposed.png"
-          [ methodSP GET $ fileServe ["Uncle-Oblomov.png"] "src/proxima/etc"]
-    , dir "startup.png"
-          [ methodSP GET $ fileServe ["Uncle-Oblomov.png"] "src/proxima/etc"]
- -- todo handle defaults!! todo make it possible to always print request
-    , dir "favicon.ico"
-          [ methodSP GET $ fileServe ["favicon.ico"] "src/proxima/etc"]
+ -- old comment: todo handle defaults!!
+    {-
     , withAgentIsMIE $ \agentIsMIE ->
         (methodSP GET $ do { -- liftIO $ putStrLn $ "############# page request"
                              let setTypeToHTML = if agentIsMIE 
@@ -159,17 +189,16 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
                            ; modifyResponseSP (noCache. setTypeToHTML) $
                                 fileServe [] filePath
                            })
-                 
-
-    , dir "Document.xml"
-        [ methodSP GET $ do { _<- liftIO $ genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
+      -}           
+    , dir "Document.xml" $ do { liftIO $ putStrLn "ja\n\n\n\n\n\n\n"
+                              ; _ <- liftIO $ genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
                                      castEnr $ SaveFileEnr "Document.xml" 
-                              -- ignore the html rendering of the save command (is empty)
-                            ; modifyResponseSP (setHeader "Content-Disposition" "attachment;") $
-                                fileServe ["Document.xml"] "."
-                            }
-        ]
-    , sessionHandler params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
+                                -- ignore the html rendering of the save command (is empty)
+                              ; fmap (setHeader "Content-Disposition" "attachment;") $
+                                 serveFile (asContentType "application/xml")    "Document.xml"
+                              }
+    
+    --, sessionHandler params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
     ]
 
 {-
@@ -184,21 +213,11 @@ TODO: The proxima server requires that the proxima directory is present for favi
       Editor.xml, these files should be part of a binary distribution.
 -}
 
-modifyResponseSP :: (Response -> Response) -> ServerPart a -> ServerPart a
-modifyResponseSP modResp (ServerPartT f) =
-  withRequest $ \rq -> modifyResponseW modResp $ f rq
-    
-modifyResponseW modResp w =
- do { a <- w
-    ; modifyResponse modResp
-    ; return a
-    }
-    
 noCache :: Response -> Response  
 noCache = addHeader "Expires" "Mon, 28 Jul 2000 11:24:47 GMT"
 -- TODO: figure out if noCache is really necessary, both for editor.xml and handle
 -- It does not work for IE
- 
+ {-
 withAgentIsMIE f = withRequest $ \rq -> 
                      (unServerPartT $ f ("MSIE" `isInfixOf` (show $ getHeader "user-agent" rq))) rq
                      -- not the most elegant method of checking for Internet explorer
@@ -563,7 +582,7 @@ handleCommand (settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewe
         ; let (itemStrs,upds) = unzip $ makePopupMenuHTML proxX proxY
               itemsHTML = concat 
                             [ "<div class='menuItem' item='"++show i++"'>"++item++"</div>"
-                            | (i,item) <- zip [0..] itemStrs
+                            | (i,item) <- zip [0::Int ..] itemStrs
                             ]
           -- for separator lines: "<hr></hr>"
         
