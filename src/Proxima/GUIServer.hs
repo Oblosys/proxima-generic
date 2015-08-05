@@ -165,6 +165,7 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
  -- old comment: todo handle defaults!!
     , withAgentIsMIE $ \agentIsMIE ->
         (methodSP GET $ do { liftIO $ putStrLn $ "############# page request"
+                           --; liftIO $ putStrLn $ "IE " ++ show agentIsMIE
                            ; let setTypeToHTML = if agentIsMIE 
                                                  then setHeader "Content-Type" "text/html"
                                                  else id
@@ -204,16 +205,16 @@ noCache = addHeader "Expires" "Mon, 28 Jul 2000 11:24:47 GMT"
 -- TODO: figure out if noCache is really necessary, both for editor.xml and handle
 -- It does not work for IE
  
-withAgentIsMIE f = f False
-      {- withRequest $ \rq -> 
-                     (unServerPartT $ f ("MSIE" `isInfixOf` (show $ getHeader "user-agent" rq))) rq
+withAgentIsMIE f = askRq >>= \rq -> 
+                     f ("Trident" `isInfixOf` (show $ getHeader "user-agent" rq)) -- (unServerPartT $ f ("MSIE" `isInfixOf` (show $ getHeader "user-agent" rq))) rq
                      -- not the most elegant method of checking for Internet explorer
 
+                     -- Old comments, might not hold for IE 11:
                      -- IE does not support SVG and XHTML
                      -- XHTML is not a big problem, but for SVG we need an alternative
                      -- Maybe we also need to switch to POST for IE, since it
                      -- cannot handle large queries with GET
--}
+
 
 
 sessionHandler :: (Show token, Show node, Show enr, Show doc) => 
@@ -250,7 +251,7 @@ sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex me
          else liftIO $ putStrLn "\n\nSecondary editing session"
        ; liftIO $ putStrLn $ "Session "++show sessionId ++", all sessions: "++ show (currentSessions) 
        ; rq <- askRq
-       ; liftIO $ putStrLn $ "URL: "++ rqURL rq
+       --; liftIO $ putStrLn $ "URL: "++ rqURL rq
        ; response <- msum $ handlers params menuR actualViewedAreaRef mPreviousSessionRef sessionId isPrimarySession (length currentSessions)
 
        ; liftIO $ writeIORef currentSessionsRef $ 
