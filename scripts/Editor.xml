@@ -787,6 +787,7 @@ function keyup(e)
 
 var scrollInProgress = false;
 var internalScrollEvent = false; // the nature of the next handled scroll event
+var scrollCommandDelayTimer = null; // timer to prevent flooding the server with scroll events
 
 function mouseHandler(str,e) 
 { if (str == 'S' && internalScrollEvent) // ignore internal scroll event
@@ -802,9 +803,19 @@ function mouseHandler(str,e)
 
   if (str == 'S' && !internalScrollEvent) {
     //console.log('SetViewedArea((' + proxima.scrollLeft + ',' + proxima.scrollTop + '),(' + proxima.clientWidth + ',' + proxima.clientHeight + '));');
-    prependSetViewedAreaCommand();
-    // there already is one at the start of the command queue (added by sendCommand), but put the most recent one just in case
-    sendCommand('Redraw;');
+
+    // if another scroll command (== set viewed area command) is pending, clear it
+    if (scrollCommandDelayTimer) {
+      clearTimeout(scrollCommandDelayTimer);
+    }
+
+    // and send this one with a slight delay to prevent flooding.
+    scrollCommandDelayTimer = setTimeout(function() {
+        console.log('sending scroll command')
+        prependSetViewedAreaCommand();
+        // there already is one at the start of the command queue (added by sendCommand), but put the most recent one just in case
+        sendCommand('Redraw;');
+      }, 50);
   }
   /* Old comment: We don't use scroll events, because setting scrollLeft and scrollTop also fires these events, and
                   it does not seem possible to disable the handler temporarily
