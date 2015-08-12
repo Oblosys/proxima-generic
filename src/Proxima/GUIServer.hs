@@ -185,6 +185,7 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
                               }
     
     , sessionHandler params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
+    , forbidden $ toResponse "Access forbidden"
     ]
 
 {-
