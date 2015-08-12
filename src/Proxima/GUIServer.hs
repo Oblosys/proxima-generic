@@ -184,7 +184,7 @@ server params@(settings,handler,renderingLvlVar,viewedAreaRef) mutex menuR actua
                                  serveFile (asContentType "application/xml")    "Document.xml"
                               }
     
-    , sessionHandler params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
+    , sessionHandlerMutexed params mutex menuR actualViewedAreaRef  mPreviousSessionRef serverInstanceId currentSessionsRef
     , forbidden $ toResponse "Access forbidden"
     ]
 
@@ -216,10 +216,9 @@ withAgentIsMIE f = askRq >>= \rq ->
                      -- cannot handle large queries with GET
 
 
-
-sessionHandler :: (Show token, Show node, Show enr, Show doc) => 
-                  ( Settings, 
-                    ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+sessionHandlerMutexed :: (Show token, Show node, Show enr, Show doc) =>
+                  ( Settings,
+                    ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) ->
                       IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
                     )
                   , IORef (RenderingLevel doc enr node clip token)
@@ -231,14 +230,46 @@ sessionHandler :: (Show token, Show node, Show enr, Show doc) =>
                   ServerInstanceId ->
                   CurrentSessionsRef ->
                   ServerPartT IO Response
-sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex menuR actualViewedAreaRef mPreviousSessionRef
+sessionHandlerMutexed  params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex menuR actualViewedAreaRef mPreviousSessionRef
+               serverInstanceId currentSessionsRef =
+  msum [ do { liftIO $ obtainMutex
+           -- Proxima is not thread safe yet, so only one thread at a time is allowed to execute.
+
+            ; response <- sessionHandler params menuR actualViewedAreaRef mPreviousSessionRef
+               serverInstanceId currentSessionsRef
+
+            ; liftIO $ releaseMutex
+            ; return response
+            }
+       , do { liftIO $ releaseMutex -- in case sessionHandler does not handle the request, we still need to release the mutex
+            ; mzero
+            }
+       ]
+  where obtainMutex  = do { --putStrLn "Trying to obtain mutex"
+                          ; takeMVar mutex -- obtain mutex
+                          ; --putStrLn "Obtained mutex"
+                          }
+        releaseMutex = do { --putStrLn "About to release mutex"
+                          ; putMVar mutex () -- release the mutex
+                          ; --putStrLn "Mutex released"
+                          }
+
+sessionHandler :: (Show token, Show node, Show enr, Show doc) =>
+                  ( Settings, 
+                    ( RenderingLevel doc enr node clip token, EditRendering doc enr node clip token) -> 
+                      IO (RenderingLevel doc enr node clip token, [EditRendering' doc enr node clip token]
+                    )
+                  , IORef (RenderingLevel doc enr node clip token)
+                  , IORef Rectangle) ->
+                  IORef [Wrapped doc enr node clip token] ->
+                  IORef CommonTypes.Rectangle ->
+                  (IORef (Maybe SessionId)) ->
+                  ServerInstanceId ->
+                  CurrentSessionsRef ->
+                  ServerPartT IO Response
+sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) menuR actualViewedAreaRef mPreviousSessionRef
                serverInstanceId currentSessionsRef = 
-    do { -- liftIO $ putStrLn "Trying to obtain mutex"
-       ; liftIO $ takeMVar mutex -- obtain mutex
-       --; liftIO $ putStrLn "Obtained mutex"
-       -- Proxima is not thread safe yet, so only one thread at a time is allowed to execute.
-        
-       ; removeExpiredSessions currentSessionsRef
+    do { removeExpiredSessions currentSessionsRef
        ; sessionId <- getCookieSessionId serverInstanceId currentSessionsRef
        ; (currentSessions, idCounter) <- liftIO $ readIORef currentSessionsRef
                
@@ -258,10 +289,6 @@ sessionHandler params@(settings,handler,renderingLvlVar, viewedAreaRef) mutex me
                           ( currentSessions 
                           , idCounter
                           )
-
-       --; liftIO $ putStrLn "About to release mutex"
-       ; liftIO $ putMVar mutex () -- release the mutex
-       --; liftIO $ putStrLn "Mutex released"
        ; return response
        }
        
@@ -286,36 +313,35 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
         -- TODO: Pretty hacky and unsafe code. Should have error handling and check wether uploaded document parses, since otherwise editor resets to default document.
         --; liftIO $ putStrLn $ "Before decodeBody" ++ show rq
         ; decodeBody (defaultBodyPolicy "/tmp/" maxFileUploadSize 1000 1000) -- Document.xml file size, data size, and headers size (latter two should be small) 
-        ; withData $ \(UploadedFileRef tmpFilePath) ->
-           do { liftIO $ 
-                 do { putStrLn tmpFilePath
-                    ; tempFileH <- openFile tmpFilePath ReadMode
-                    ; docContents <- hGetContents tempFileH
-                    ; seq (length . show $ docContents) $ return ()
-                    ; hClose tempFileH
-                    ; when (docContents /= "") $ liftIO $
-                       do { putStrLn $ "Document.xml uploaded:\n" ++ show tmpFilePath
-                          ; fh <- openFile "Document.xml" WriteMode
-                          ; hPutStrLn fh docContents
-                          ; hClose fh
-                          ; genericHandler settings handler renderingLvlVar viewedAreaRef () $ 
-                              castEnr $ OpenFileEnr "Document.xml" 
-                            -- ignore html output, the page will be reloaded after pressing the button
-                          ; return ()
-                          }
-                            -- simply serving the Editor.xml does not work, as the browser will have upload in its menu bar
-                            -- (also the page doesn't load correctly)
-                            -- Instead, we show a page that immediately goes back to the editor page
-                    }
-              }
-        ; let responseHtml =
-                "<html><head><script type='text/javascript'><!--\n" ++
-                "window.location.href = document.referrer;" ++
-                "\n--></script></head><body></body></html>"
-                -- newlines between <!-- & javascript and javascript and --> are necessary!!
-                --"<html><body>Document has been uploaded.<p><button onclick=\"location.href='/'\">Return to editor</button></html>"
+        ; response <- withData $ \(UploadedFileRef tmpFilePath) ->
+           liftIO $ catchExceptions False $ -- False means exception is not formatted as update
+            do { putStrLn tmpFilePath
+               ; tempFileH <- openFile tmpFilePath ReadMode
+               ; docContents <- hGetContents tempFileH
+               ; seq (length . show $ docContents) $ return ()
+               ; hClose tempFileH
+               ; when (docContents /= "") $ liftIO $
+                  do { putStrLn $ "Document.xml uploaded:\n" ++ show tmpFilePath
+                     ; fh <- openFile "Document.xml" WriteMode
+                     ; hPutStrLn fh docContents
+                     ; hClose fh
+                     ; genericHandler settings handler renderingLvlVar viewedAreaRef () $
+                         castEnr $ OpenFileEnr "Document.xml"
+                       -- ignore html output, the page will be reloaded after pressing the button
+                     ; return ()
+                     }
+                       -- simply serving the Editor.xml does not work, as the browser will have upload in its menu bar
+                       -- (also the page doesn't load correctly)
+                       -- Instead, we show a page that immediately goes back to the editor page
+               ; return . toResponse $
+                   "<html><head><script type='text/javascript'><!--\n" ++
+                   "window.location.href = document.referrer;" ++
+                   "\n--></script></head><body></body></html>"
+                   -- newlines between <!-- & javascript and javascript and --> are necessary!!
+                   --"<html><body>Document has been uploaded.<p><button onclick=\"location.href='/'\">Return to editor</button></html>"
+               }
         ; fmap (setHeader "Content-Type" "text/html") $ -- todo there must be a nicer way to get an html response
-            anyRequest $ ok $ toResponse responseHtml   
+            anyRequest $ ok $ response
         }                      
      
   , dir "handle" . withData $ \cmds -> methodSP GET $ 
@@ -323,21 +349,20 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
         --; liftIO $ putStrLn "Pausing.."
         --; liftIO $ threadDelay 1000000
         --; liftIO $ putStrLn "Done"
-        ; (responseHtml,responseLength) <-
-            liftIO $ catchExceptions $
+        ; responseHtml <-
+            liftIO $ catchExceptions True $
               do { html <- handleCommands params menuR actualViewedAreaRef mPreviousSessionRef
                                           sessionId isPrimarySession nrOfSessions
                                           cmds
-                 ; let responseLength = length html 
-                 ; seq responseLength $ return ()
-                 ; return (html, responseLength)
+                 ; seq (length html) $ return ()
+                 ; return $ toResponse html
                  } -- kind of tricky, we need to make sure that the html string is evaluated here, so
                                            -- any possible exceptions are thrown and caught. If not, HApps silently sends the
                                            -- exception text as the html response :-(
 
 --        ; liftIO $ putStrLn $ "\n\n\n\ncmds = "++show cmds
 --        ; liftIO $ putStrLn $ "\n\n\nresponse = \n" ++ show responseHTML
-        ; liftIO $ putStrLn $ "Sending response sent to client (length: "++show responseLength++ ")" 
+        ; liftIO $ putStrLn $ "Sending response sent to client"
 
         --; modifyResponseW noCache $
         ;  anyRequest $ ok $ toResponse responseHtml 
@@ -345,9 +370,9 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
   ]  
 
 -- NOTE: this does not catch syntax errors in the fromData on Commands, as these are handled before we get in the IO monad.
--- This only occurs when there is a problem with string quotes in the command string. If parsing fails, we get a happs server error:... 
--- The separate commands on the other hand are parsed safely.
-catchExceptions io =
+-- isAlert specifies whether the response is formatted as a Proxima update div.
+catchExceptions :: Bool -> IO Response -> IO Response
+catchExceptions isAlert io =
   io `Control.Exception.catch` \exc ->
        do { let exceptionText = 
                   "\n\n\n\n###########################################\n\n\n" ++
@@ -355,9 +380,9 @@ catchExceptions io =
                   "###########################################" 
           
           ; putStrLn exceptionText
-          ; let responseHTML = mkAlertResponseHTML exceptionText
+          ; let responseHTML = if isAlert then mkAlertResponseHTML exceptionText else exceptionText
                 
-          ; return (responseHTML, length responseHTML)
+          ; return (toResponse responseHTML)
           }
 
 mkAlertResponseHTML alertMsg =  "<div id='updates'><div id='alert' op='alert' text='"++filter (/='\'') alertMsg ++"'></div></div>"
