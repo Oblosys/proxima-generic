@@ -786,17 +786,31 @@ function keyup(e)
 }
 
 var scrollInProgress = false;
+var internalScrollEvent = false; // the nature of the next handled scroll event
 
 function mouseHandler(str,e) 
-{ if (e.button != 0) return true;  // only handle left button here
+{ if (str == 'S' && internalScrollEvent) // ignore internal scroll event
+  { internalScrollEvent = false; // scroll event is triggered after the function setting scrollTop/scrollLeft has exited, so we need to reset internalScrollEvent here.
+  ; return true
+  }
+  if (e.button != 0 && str != 'S') return true;  // only handle left button here
   var proxima = document.getElementById('proxima');
 
   var coords = getMouseCoordsWithinTarget(e,proxima);
   var posx = coords.x;
   var posy = coords.y;
-  
-  /* We don't use scroll events, because setting scrollLeft and scrollTop also fires these events, and
-     it does not seem possible to disable the handler temporarily */
+
+  if (str == 'S' && !internalScrollEvent) {
+    //console.log('SetViewedArea((' + proxima.scrollLeft + ',' + proxima.scrollTop + '),(' + proxima.clientWidth + ',' + proxima.clientHeight + '));');
+    prependSetViewedAreaCommand();
+    // there already is one at the start of the command queue (added by sendCommand), but put the most recent one just in case
+    sendCommand('Redraw;');
+  }
+  /* Old comment: We don't use scroll events, because setting scrollLeft and scrollTop also fires these events, and
+                  it does not seem possible to disable the handler temporarily
+
+     Fixed by using internalScrollEvent. Probably not perfect, but much better for demo purposes */
+  /*
   if (scrollInProgress)
   { if (str == 'U' || (str == 'M' && browserIsSafari) )
 
@@ -825,7 +839,7 @@ function mouseHandler(str,e)
       scrollInProgress = true;
     return true;
   }
-
+*/
 //  setStatus( 'dragState is '+dragState + ' origin(' + mouseDownPos.x + ',' + mouseDownPos.y + ') offset(' + dragOffset.x + ',' + dragOffset.y + ')' );
 
   
@@ -1047,9 +1061,9 @@ function prependSetViewedAreaCommand()
 function setViewedAreaClient(x,y,w,h)
 { var proxima = document.getElementById('proxima');
 
+  internalScrollEvent = true; // indicate that the next handled scroll event was an internal one
   proxima.scrollLeft = x;
   proxima.scrollTop = y;
-  internalScrollEvent = true
 }
 
 function downloadDocument()
@@ -1284,6 +1298,7 @@ function test()
      onmouseup="return mouseHandler('U',event)"
      onclick="return mouseHandler('C',event)"
      onmousemove="return mouseHandler('M',event)"
+     onscroll="return mouseHandler('S',event)"
      oncontextmenu="return contextHandler(event)">
 <div id="rendering"></div>
 <div id="-2"></div>  <!-- -2 is the focus -->
@@ -1328,9 +1343,6 @@ function test()
 </td></tr>
 
 </table>
-<div style="font-family:sans-serif; margin:10px 6px 0px 6px">
-NOTE: Due to legacy issues, scrolling is only possible by explicitly using the scroll bars. Scrolling with a scroll wheel or dragging on a touch pad is not supported.
-</div>
 <!-- <div style="visibility:hidden" id="sessionInfo"></div>
 <div id="debugMessage"></div> -->
 </body></html>
