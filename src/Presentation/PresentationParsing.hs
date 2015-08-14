@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, ScopedTypeVariables, NoMonoLocalBinds #-}
+{-# LANGUAGE GADTs, ScopedTypeVariables, NoMonoLocalBinds, FlexibleContexts #-}
 module Presentation.PresentationParsing ( module Presentation.PresentationParsing
                                         , module UU.Parsing 
                                         ) where
@@ -56,6 +56,9 @@ addHoleParser p =
   p <|> hole <$ pStructuralTk (holeNodeConstr :: a -> Path -> node)
   
 
+pStr'' :: (DocNode node, Ord token, Show token, Editable a doc enr node clip token) => 
+          (a -> Path -> node) -> a -> ListParser doc enr node clip token a ->
+          ListParser doc enr node clip token a
 pStr'' nodeC hole p = unfoldStructure  
      <$> pSym (StructuralTk 0 Nothing (EmptyP NoIDP) [] NoIDP)
  where unfoldStructure structTk@(StructuralTk _ nd pr tokens _) = 

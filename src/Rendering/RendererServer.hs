@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-} 
+{-# LANGUAGE CPP, FlexibleContexts #-} 
 -- CPP is enabled only for this module, since it slows the build process down quite a bit
 module Rendering.RendererServer (render, renderFocus, mkPopupMenuXY) where
 

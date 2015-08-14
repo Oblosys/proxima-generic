@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Evaluation.DocUtils where
 
 

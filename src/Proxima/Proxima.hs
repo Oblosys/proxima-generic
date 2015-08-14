@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-} 
 module Proxima.Proxima where
  
 import Data.IORef

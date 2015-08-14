@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Proxima.GUIServer (initialize, startEventLoop, genericHandler, withCatch) where
 
 import Common.CommonTypes ( DebugLevel (..), debug, showDebug, showDebug', debugIO, debugLnIO
@@ -20,7 +21,6 @@ import Happstack.Server.Internal.Monads (anyRequest) -- TODO: might be able to u
 import System.Log.Logger (updateGlobalLogger, rootLoggerName, setLevel, Priority(..))
 import System.Environment
 import Data.Time
-import System.Locale
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Control.Monad.Trans
