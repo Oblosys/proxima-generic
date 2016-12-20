@@ -2,6 +2,6 @@
 # $1 is the name of the directory, $2 is the name of the executable
 
 echo starting $HOME/git/$1/dist/build/$2/$2
-killall $2
+#killall $2
 cd $HOME/git/$1
 dist/build/$2/$2 < /dev/null >> server.log 2>&1 &
