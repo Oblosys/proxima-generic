@@ -64,7 +64,7 @@ type GUICommand wrapped doc enr node clip token = ((RenderingLevel_ wrapped doc 
 -- GUICommand is currently only used for popup menus
 
 
-type Rendering = DrawableClass drawWindow => (Window, drawWindow, GC) -> (Point,Size) -> Render ()
+type Rendering = forall drawWindow . DrawableClass drawWindow => (Window, drawWindow, GC) -> (Point,Size) -> Render ()
                                                                       -- viewd area ((x,y),(w,h))
 
 emptyGUICommand :: GUICommand wrapped doc enr node clip token

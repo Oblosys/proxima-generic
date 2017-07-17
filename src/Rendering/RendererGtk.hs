@@ -1,3 +1,4 @@
+{-# LANGUAGE RankNTypes #-}
 module Rendering.RendererGtk (render, renderFocus, mkPopupMenuXY) where
 
 import Common.CommonTypes hiding (Rectangle)
@@ -130,7 +131,7 @@ mkChildDiffTrees (DiffNodeArr c c' _       _       dts) = repeat (DiffLeafArr Fa
 
 {- make renderArrangement that does background setting (later do this only when needed)
 -}
-renderArr :: (DocNode node, DrawableClass drawWindow) => Region -> (Window, drawWindow, GC) -> Bool -> Scale -> (Int,Int) ->
+renderArr :: forall node drawWindow . (DocNode node, DrawableClass drawWindow) => Region -> (Window, drawWindow, GC) -> Bool -> Scale -> (Int,Int) ->
                                          (Point, Size) -> DiffTreeArr -> Arrangement node -> Render ()    
 renderArr oldClipRegion (wi,dw,gc) arrDb scale (lux, luy) viewedArea diffTree arrangement =
  do { -- debugLnIO Err (shallowShowArr arrangement ++":"++ show (isCleanDT diffTree));
