@@ -337,8 +337,9 @@ else if (window.ActiveXObject)
 if (xmlhttp!=null)
   { 
     { xmlhttp.onreadystatechange=state_Change;
-      xmlhttp.open("GET",'handle?commands=Commands '+ currentRequestId +' "'+commandQueue+'"',true);
-      xmlhttp.send(null);     // commands are terminated by semicolons
+      xmlhttp.open("POST",'handle/',true);
+      xmlhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+      xmlhttp.send(`commands=Commands ${currentRequestId} "${commandQueue}"`);
 
       if (document.getElementById('status'))
         switch(sessionType)

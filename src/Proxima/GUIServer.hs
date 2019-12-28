@@ -345,14 +345,18 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
             anyRequest $ ok $ response
         }                      
   , -}
-    dir "handle" . withData $ \cmds -> methodSP GET $ 
-     do { liftIO $ putStrLn $ "Command received " ++ take 60 (show cmds)
+    dir "handle" . methodSP POST $ 
+     do { decodeBody (defaultBodyPolicy "/tmp/" 0 (1024*1024) (1024*1024)) -- 1Mb for command string and encoding overhead should be enough.
+        ; commandsStr <- look "commands"
         --; liftIO $ putStrLn "Pausing.."
         --; liftIO $ threadDelay 1000000
         --; liftIO $ putStrLn "Done"
         ; responseHtml <-
             liftIO $ catchExceptions True $
-              do { html <- handleCommands params menuR actualViewedAreaRef mPreviousSessionRef
+              do { let cmds = read commandsStr :: Commands
+                 ; putStrLn $ "Commands received " ++ take 60 (show cmds)
+
+                 ; html <- handleCommands params menuR actualViewedAreaRef mPreviousSessionRef
                                           sessionId isPrimarySession nrOfSessions
                                           cmds
                  ; seq (length html) $ return ()
