@@ -308,7 +308,8 @@ handlers :: (Show token, Show node, Show enr, Show doc) =>
             [ServerPartT IO Response]
 handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualViewedAreaRef mPreviousSessionRef
          sessionId isPrimarySession nrOfSessions = 
-  [ dir "upload" $ methodSP POST $
+  [ {- Potentially unsafe document upload has been disabled
+     dir "upload" $ methodSP POST $
      do { rq <- askRq
         -- TODO: Pretty hacky and unsafe code. Should have error handling and check wether uploaded document parses, since otherwise editor resets to default document.
         --; liftIO $ putStrLn $ "Before decodeBody" ++ show rq
@@ -343,8 +344,8 @@ handlers params@(settings,handler,renderingLvlVar,viewedAreaRef) menuR actualVie
         ; fmap (setHeader "Content-Type" "text/html") $ -- todo there must be a nicer way to get an html response
             anyRequest $ ok $ response
         }                      
-     
-  , dir "handle" . withData $ \cmds -> methodSP GET $ 
+  , -}
+    dir "handle" . withData $ \cmds -> methodSP GET $ 
      do { liftIO $ putStrLn $ "Command received " ++ take 60 (show cmds)
         --; liftIO $ putStrLn "Pausing.."
         --; liftIO $ threadDelay 1000000
