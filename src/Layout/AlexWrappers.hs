@@ -1,5 +1,10 @@
 -- -----------------------------------------------------------------------------
--- Proxima wrapper
+-- Proxima wrapper (src/proxima/src/Layout/AlexWrappers.hs)
+--
+-- Different wrappers are selected with #ifdef's, so the wrapper name does not matter and we can include this file with:
+--
+--   %wrapper "basic"
+-- 
 
 type ScanChar_ = ScanChar Document EnrichedDoc Node ClipDoc UserToken
 -- ScanChar_ is ScanChar applied to its parameter types. This is necessary, because Alex
