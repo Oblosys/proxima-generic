@@ -1347,7 +1347,7 @@ function test()
 <!-- Potentially unsafe document upload has been disabled
 <td><button onclick="uploadDocument();">Upload</button></td>
 -->
-<td><button onclick="window.open('http://www.cs.uu.nl/wiki/bin/view/Proxima/ProximaUserManual');">User&nbsp;Manual</button>
+<td><button onclick="window.open('https://github.com/Oblosys/proxima/wiki/Proxima-2.0-User-Manual');">User&nbsp;Manual</button>
 </td>
 <!-- <td><button onclick="sendCommand('ClearMetrics;')">Reload&nbsp;Font&nbsp;Metrics</button></td> --><!-- with normal space button text gets line breaks -->
 <!-- <td><button onclick="test();">Test</button></td> -->
@@ -1362,10 +1362,3 @@ function test()
 <!-- <div style="visibility:hidden" id="sessionInfo"></div>
 <div id="debugMessage"></div> -->
 </body></html>
-
-
-
-
-
-
-
